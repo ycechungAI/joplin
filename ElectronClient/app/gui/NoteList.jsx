@@ -127,7 +127,10 @@ class NoteListComponent extends React.Component {
 		const hPadding = 10;
 
 		let style = Object.assign({ width: width }, this.style().listItem);
-		if (this.props.selectedNoteIds.indexOf(item.id) >= 0) style = Object.assign(style, this.style().listItemSelected);
+
+		if (this.props.selectedNoteIds.indexOf(item.id) >= 0) {
+			style = Object.assign(style, this.style().listItemSelected);
+		}
 
 		// Setting marginBottom = 1 because it makes the checkbox looks more centered, at least on Windows
 		// but don't know how it will look in other OSes.
@@ -154,7 +157,7 @@ class NoteListComponent extends React.Component {
 				onClick={(event) => { onTitleClick(event, item) }}
 				onDragStart={(event) => onDragStart(event) }
 			>
-			{item.title}
+				{item.title}
 			</a>
 		</div>
 	}
@@ -162,8 +165,9 @@ class NoteListComponent extends React.Component {
 	render() {
 		const theme = themeStyle(this.props.theme);
 		const style = this.props.style;
+		let notes = this.props.notes.slice();
 
-		if (!this.props.notes.length) {
+		if (!notes.length) {
 			const padding = 10;
 			const emptyDivStyle = Object.assign({
 				padding: padding + 'px',
@@ -182,7 +186,7 @@ class NoteListComponent extends React.Component {
 				itemHeight={this.style().listItem.height}
 				style={style}
 				className={"note-list"}
-				items={this.props.notes}
+				items={notes}
 				itemRenderer={ (item) => { return this.itemRenderer(item, theme, style.width) } }
 			></ItemList>
 		);

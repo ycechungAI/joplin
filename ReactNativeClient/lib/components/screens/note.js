@@ -51,6 +51,8 @@ class NoteScreenComponent extends BaseScreenComponent {
 			isLoading: true,
 			titleTextInputHeight: 20,
 			alarmDialogShown: false,
+			wasNewNote: false,
+			titleNeverChanged: false,
 		};
 
 		// iOS doesn't support multiline text fields properly so disable it
