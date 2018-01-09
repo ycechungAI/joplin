@@ -27,6 +27,7 @@ const defaultState = {
 	appState: 'starting',
 	//windowContentSize: { width: 0, height: 0 },
 	hasDisabledSyncItems: false,
+	newNote: null,
 };
 
 // When deleting a note, tag or folder
@@ -119,12 +120,14 @@ function changeSelectedNotes(state, action) {
 
 	if (action.type === 'NOTE_SELECT') {
 		newState.selectedNoteIds = noteIds;
+		newState.newNote = null;
 		return newState;
 	}
 
 	if (action.type === 'NOTE_SELECT_ADD') {
 		if (!noteIds.length) return state;
 		newState.selectedNoteIds = ArrayUtils.unique(newState.selectedNoteIds.concat(noteIds));
+		newState.newNote = null;
 		return newState;
 	}
 
@@ -139,6 +142,7 @@ function changeSelectedNotes(state, action) {
 			newSelectedNoteIds.push(id);
 		}
 		newState.selectedNoteIds = newSelectedNoteIds;
+		newState.newNote = null;
 
 		return newState;
 	}
@@ -151,6 +155,8 @@ function changeSelectedNotes(state, action) {
 		} else {
 			newState = changeSelectedNotes(state, { type: 'NOTE_SELECT_ADD', id: noteIds[0] });
 		}
+
+		newState.newNote = null;
 
 		return newState;
 	}
@@ -401,6 +407,12 @@ const reducer = (state = defaultState, action) => {
 				newState = Object.assign({}, state);
 				newState.hasDisabledSyncItems = true;
 				break;
+
+			case 'NOTE_SET_NEW_ONE':
+
+				newState = Object.assign({}, state);
+				newState.newNote = action.item;
+				break;				
 
 		}
 	} catch (error) {

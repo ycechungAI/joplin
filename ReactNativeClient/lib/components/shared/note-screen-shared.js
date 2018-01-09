@@ -5,6 +5,8 @@ const { Note } = require('lib/models/note.js');
 
 const shared = {};
 
+shared.lastSavedNoteId_ = null;
+
 shared.noteExists = async function(noteId) {
 	const existingNote = await Note.load(noteId);
 	return !!existingNote;
@@ -31,7 +33,7 @@ shared.saveNoteButton_press = async function(comp) {
 	let isNew = !note.id;
 	let titleWasAutoAssigned = false;
 
-	if (isNew && !note.title) {
+	if ((isNew || comp.state.wasNewNote) && comp.state.titleNeverChanged) {
 		note.title = Note.defaultTitle(note);
 		titleWasAutoAssigned = true;
 	}
@@ -47,6 +49,24 @@ shared.saveNoteButton_press = async function(comp) {
 	}
 
 	const savedNote = await Note.save(diff);
+
+	const noteIdHasChanged = shared.lastSavedNoteId_ !== savedNote.id;
+	const wasNewNote = !noteIdHasChanged || isNew;
+
+	shared.lastSavedNoteId_ = savedNote.id;
+
+	if (isNew) {
+		// Clear the newNote item now that the note has been saved, and
+		// make sure that the note we're editing is selected.
+		comp.props.dispatch({
+			type: 'NOTE_SET_NEW_ONE',
+			item: null,
+		});
+		comp.props.dispatch({
+			type: 'NOTE_SELECT',
+			id: savedNote.id,
+		});
+	}
 
 	const stateNote = comp.state.note;
 	// Re-assign any property that might have changed during saving (updated_time, etc.)
@@ -67,6 +87,7 @@ shared.saveNoteButton_press = async function(comp) {
 	comp.setState({
 		lastSavedNote: Object.assign({}, note),
 		note: note,
+		wasNewNote: wasNewNote,
 	});
 
 	if (isNew) Note.updateGeolocation(note.id);
@@ -99,9 +120,15 @@ shared.saveOneProperty = async function(comp, name, value) {
 }
 
 shared.noteComponent_change = function(comp, propName, propValue) {
+	let newState = {}
+
 	let note = Object.assign({}, comp.state.note);
 	note[propName] = propValue;
-	comp.setState({ note: note });
+	newState.note = note;
+
+	if (propName === 'title') newState.titleNeverChanged = false;
+
+	comp.setState(newState);
 }
 
 shared.refreshNoteMetadata = async function(comp, force = null) {
@@ -113,7 +140,7 @@ shared.refreshNoteMetadata = async function(comp, force = null) {
 
 shared.isModified = function(comp) {
 	if (!comp.state.note || !comp.state.lastSavedNote) return false;
-	let diff = BaseModel.diffObjects(comp.state.note, comp.state.lastSavedNote);
+	let diff = BaseModel.diffObjects(comp.state.lastSavedNote, comp.state.note);
 	delete diff.type_;
 	return !!Object.getOwnPropertyNames(diff).length;
 }
