@@ -62,20 +62,23 @@ class Bridge {
 		return filePaths;
 	}
 
-	showMessageBox(window, options) {
+	// Don't use this directly - call one of the showXxxxxxxMessageBox() instead
+	showMessageBox_(window, options) {
 		const {dialog} = require('electron');
+		const nativeImage = require('electron').nativeImage
+		if (!window) window = this.window();
 		return dialog.showMessageBox(window, options);
 	}
 
 	showErrorMessageBox(message) {
-		return this.showMessageBox(this.window(), {
+		return this.showMessageBox_(this.window(), {
 			type: 'error',
 			message: message,
 		});
 	}
 
 	showConfirmMessageBox(message) {
-		const result = this.showMessageBox(this.window(), {
+		const result = this.showMessageBox_(this.window(), {
 			type: 'question',
 			message: message,
 			buttons: [_('OK'), _('Cancel')],
@@ -83,12 +86,12 @@ class Bridge {
 		return result === 0;
 	}
 
-	showInfoMessageBox(message) {
-		const result = this.showMessageBox(this.window(), {
+	showInfoMessageBox(message, options = {}) {
+		const result = this.showMessageBox_(this.window(), Object.assign({}, {
 			type: 'info',
 			message: message,
 			buttons: [_('OK')],
-		});
+		}, options));
 		return result === 0;
 	}
 
@@ -107,23 +110,6 @@ class Bridge {
 	openItem(fullPath) {
 		return require('electron').shell.openItem(fullPath)
 	}
-
-	// async checkForUpdatesAndNotify(logFilePath) {
-	// 	if (!this.autoUpdater_) {
-	// 		this.autoUpdateLogger_ = new Logger();
-	// 		this.autoUpdateLogger_.addTarget('file', { path: logFilePath });
-	// 		this.autoUpdateLogger_.setLevel(Logger.LEVEL_DEBUG);
-	// 		this.autoUpdateLogger_.info('checkForUpdatesAndNotify: Initializing...');
-	// 		this.autoUpdater_ = require("electron-updater").autoUpdater;
-	// 		this.autoUpdater_.logger = this.autoUpdateLogger_;
-	// 	}
-
-	// 	try {
-	// 		await this.autoUpdater_.checkForUpdatesAndNotify();
-	// 	} catch (error) {
-	// 		this.autoUpdateLogger_.error(error);
-	// 	}
-	// }
 
 	checkForUpdates(inBackground, window, logFilePath) {
 		const { checkForUpdates } = require('./checkForUpdates.js');

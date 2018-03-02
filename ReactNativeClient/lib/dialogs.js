@@ -36,9 +36,12 @@ dialogs.confirm = (parentComponent, message) => {
 	});
 };
 
-dialogs.pop = (parentComponent, message, buttons) => {
+dialogs.pop = (parentComponent, message, buttons, options = null) => {
 	if (!parentComponent) throw new Error('parentComponent is required');
 	if (!('dialogbox' in parentComponent)) throw new Error('A "dialogbox" component must be defined on the parent component!');
+
+	if (!options) options = {};
+	if (!('buttonFlow' in options)) options.buttonFlow = 'auto';
 
 	return new Promise((resolve, reject) => {
 		Keyboard.dismiss();
@@ -46,7 +49,7 @@ dialogs.pop = (parentComponent, message, buttons) => {
 		let btns = [];
 		for (let i = 0; i < buttons.length; i++) {
 			btns.push({
-				text: buttons[i].title,
+				text: buttons[i].text,
 				callback: () => {
 					parentComponent.dialogbox.close();
 					resolve(buttons[i].id);
@@ -57,6 +60,7 @@ dialogs.pop = (parentComponent, message, buttons) => {
 		parentComponent.dialogbox.pop({
 			content: message, 
 			btns: btns,
+			buttonFlow: options.buttonFlow,
 		});
 	});
 }

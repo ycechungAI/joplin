@@ -283,7 +283,7 @@ class Application extends BaseApplication {
 			exit: () => {},
 			showModalOverlay: (text) => {},
 			hideModalOverlay: () => {},
-			stdoutMaxWidth: () => { return 78; },
+			stdoutMaxWidth: () => { return 100; },
 			forceRender: () => {},
 			termSaveState: () => {},
 			termRestoreState: (state) => {},
@@ -387,10 +387,11 @@ class Application extends BaseApplication {
 				await this.execCommand(argv);
 			} catch (error) {
 				if (this.showStackTraces_) {
-					console.info(error);
+					console.error(error);
 				} else {
 					console.info(error.message);
 				}
+				process.exit(1);
 			}
 		} else { // Otherwise open the GUI
 			this.initRedux();

@@ -20,6 +20,8 @@ const packageInfo = require('./packageInfo.js');
 const AlarmService = require('lib/services/AlarmService.js');
 const AlarmServiceDriverNode = require('lib/services/AlarmServiceDriverNode');
 const DecryptionWorker = require('lib/services/DecryptionWorker');
+const InteropService = require('lib/services/InteropService');
+const InteropServiceHelper = require('./InteropServiceHelper.js');
 
 const { bridge } = require('electron').remote.require('./bridge');
 const Menu = bridge().Menu;
@@ -144,6 +146,10 @@ class Application extends BaseApplication {
 			this.updateTray();
 		}
 
+		if (action.type == 'SETTING_UPDATE_ONE' && action.key == 'style.editor.fontFamily' || action.type == 'SETTING_UPDATE_ALL') {
+			this.updateEditorFont();
+		}
+
 		if (['NOTE_UPDATE_ONE', 'NOTE_DELETE', 'FOLDER_UPDATE_ONE', 'FOLDER_DELETE'].indexOf(action.type) >= 0) {
 			if (!await reg.syncTarget().syncStarted()) reg.scheduleSync();
 		}
@@ -174,6 +180,94 @@ class Application extends BaseApplication {
 
 	updateMenu(screen) {
 		if (this.lastMenuScreen_ === screen) return;
+
+		const sortNoteItems = [];
+		const sortNoteOptions = Setting.enumOptions('notes.sortOrder.field');
+		for (let field in sortNoteOptions) {
+			if (!sortNoteOptions.hasOwnProperty(field)) continue;
+			sortNoteItems.push({
+				label: sortNoteOptions[field],
+				screens: ['Main'],
+				type: 'checkbox',
+				checked: Setting.value('notes.sortOrder.field') === field,
+				click: () => {
+					Setting.setValue('notes.sortOrder.field', field);
+					this.refreshMenu();
+				}
+			});		
+		}
+
+		const importItems = [];
+		const exportItems = [];
+		const ioService = new InteropService();
+		const ioModules = ioService.modules();
+		for (let i = 0; i < ioModules.length; i++) {
+			const module = ioModules[i];
+			if (module.type === 'exporter') {
+				exportItems.push({
+					label: module.format + ' - ' + module.description,
+					screens: ['Main'],
+					click: async () => {
+						await InteropServiceHelper.export(this.dispatch.bind(this), module);
+					}
+				});
+			} else {
+				for (let j = 0; j < module.sources.length; j++) {
+					const moduleSource = module.sources[j];
+					let label = [module.format + ' - ' + module.description];
+					if (module.sources.length > 1) {
+						label.push('(' + (moduleSource === 'file' ? _('File') : _('Directory')) + ')');
+					}
+					importItems.push({
+						label: label.join(' '),
+						screens: ['Main'],
+						click: async () => {
+							let path = null;
+
+							const selectedFolderId = this.store().getState().selectedFolderId;
+
+							if (moduleSource === 'file') {
+								path = bridge().showOpenDialog({
+									filters: [{ name: module.description, extensions: [module.fileExtension]}]
+								});
+							} else {
+								path = bridge().showOpenDialog({
+									properties: ['openDirectory', 'createDirectory'],
+								});
+							}
+
+							if (!path || (Array.isArray(path) && !path.length)) return;
+
+							if (Array.isArray(path)) path = path[0];
+
+							this.dispatch({
+								type: 'WINDOW_COMMAND',
+								name: 'showModalMessage',
+								message: _('Importing from "%s" as "%s" format. Please wait...', path, module.format),
+							});
+
+							const importOptions = {};
+							importOptions.path = path;
+							importOptions.format = module.format;
+							importOptions.destinationFolderId = !module.isNoteArchive && moduleSource === 'file' ? selectedFolderId : null;
+
+							const service = new InteropService();
+							try {
+								const result = await service.import(importOptions);
+								console.info('Import result: ', result);
+							} catch (error) {
+								bridge().showErrorMessageBox(error.message);
+							}
+
+							this.dispatch({
+								type: 'WINDOW_COMMAND',
+								name: 'hideModalMessage',
+							});
+						}
+					});
+				}
+			}
+		}
 
 		const template = [
 			{
@@ -210,25 +304,31 @@ class Application extends BaseApplication {
 					}
 				}, {
 					type: 'separator',
-				}, {
-					label: _('Import Evernote notes'),
-					click: () => {
-						const filePaths = bridge().showOpenDialog({
-							properties: ['openFile', 'createDirectory'],
-							filters: [
-								{ name: _('Evernote Export Files'), extensions: ['enex'] },
-							]
-						});
-						if (!filePaths || !filePaths.length) return;
+				// }, {
+				// 	label: _('Import Evernote notes'),
+				// 	click: () => {
+				// 		const filePaths = bridge().showOpenDialog({
+				// 			properties: ['openFile', 'createDirectory'],
+				// 			filters: [
+				// 				{ name: _('Evernote Export Files'), extensions: ['enex'] },
+				// 			]
+				// 		});
+				// 		if (!filePaths || !filePaths.length) return;
 
-						this.dispatch({
-							type: 'NAV_GO',
-							routeName: 'Import',
-							props: {
-								filePath: filePaths[0],
-							},
-						});
-					}
+				// 		this.dispatch({
+				// 			type: 'NAV_GO',
+				// 			routeName: 'Import',
+				// 			props: {
+				// 				filePath: filePaths[0],
+				// 			},
+				// 		});
+				// 	}
+				}, {
+					label: _('Import'),
+					submenu: importItems,
+				}, {
+					label: _('Export'),
+					submenu: exportItems,
 				}, {
 					type: 'separator',
 					platforms: ['darwin'],
@@ -236,7 +336,7 @@ class Application extends BaseApplication {
 					label: _('Hide %s', 'Joplin'),
 					platforms: ['darwin'],
 					accelerator: 'CommandOrControl+H',
-					click: () => { bridge().window().hide() }
+					click: () => { bridge().electronApp().hide() }
 				}, {
 					type: 'separator',
 				}, {
@@ -287,6 +387,29 @@ class Application extends BaseApplication {
 							name: 'toggleVisiblePanes',
 						});
 					}
+				}, {
+					type: 'separator',
+					screens: ['Main'],
+				}, {
+					label: Setting.settingMetadata('notes.sortOrder.field').label(),
+					screens: ['Main'],
+					submenu: sortNoteItems,
+				}, {
+					label: Setting.settingMetadata('notes.sortOrder.reverse').label(),
+					type: 'checkbox',
+					checked: Setting.value('notes.sortOrder.reverse'),
+					screens: ['Main'],
+					click: () => {
+						Setting.setValue('notes.sortOrder.reverse', !Setting.value('notes.sortOrder.reverse'));
+					},
+				}, {
+					label: Setting.settingMetadata('uncompletedTodosOnTop').label(),
+					type: 'checkbox',
+					checked: Setting.value('uncompletedTodosOnTop'),
+					screens: ['Main'],
+					click: () => {
+						Setting.setValue('uncompletedTodosOnTop', !Setting.value('uncompletedTodosOnTop'));
+					},
 				}],
 			}, {
 				label: _('Tools'),
@@ -340,8 +463,8 @@ class Application extends BaseApplication {
 							'Copyright © 2016-2018 Laurent Cozic',
 							_('%s %s (%s, %s)', p.name, p.version, Setting.value('env'), process.platform),
 						];
-						bridge().showMessageBox({
-							message: message.join('\n'),
+						bridge().showInfoMessageBox(message.join('\n'), {
+							icon: bridge().electronApp().buildDir() + '/icons/32x32.png',
 						});
 					}
 				}]
@@ -399,6 +522,21 @@ class Application extends BaseApplication {
 			])
 			app.createTray(contextMenu);
 		}
+	}
+
+	updateEditorFont() {
+		const fontFamilies = [];
+		if (Setting.value('style.editor.fontFamily')) fontFamilies.push('"' + Setting.value('style.editor.fontFamily') + '"');
+		fontFamilies.push('monospace');
+
+		// The '*' and '!important' parts are necessary to make sure Russian text is displayed properly
+		// https://github.com/laurent22/joplin/issues/155
+
+		const css = '.ace_editor * { font-family: ' + fontFamilies.join(', ') + ' !important; }';
+		const styleTag = document.createElement('style');
+		styleTag.type = 'text/css';
+		styleTag.appendChild(document.createTextNode(css));
+		document.head.appendChild(styleTag);
 	}
 
 	async start(argv) {
