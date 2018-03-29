@@ -62,6 +62,8 @@ class WebDavApi {
 					if (davNamespaces.indexOf(ns) >= 0) {
 						name = 'd:' + p[1];
 					}
+				} else if (!davNamespaces.length) {
+					name = 'd:' + name;
 				}
 			}
 			return name.toLowerCase();
@@ -70,6 +72,7 @@ class WebDavApi {
 		const attrValueProcessor = (value, name) => {
 			if (value.toLowerCase() === 'dav:') {
 				const p = name.split(':');
+				if (p.length <= 1) return;
 				davNamespaces.push(p[p.length - 1]);
 			}
 		}
