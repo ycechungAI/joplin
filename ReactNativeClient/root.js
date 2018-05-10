@@ -1,5 +1,5 @@
 const React = require('react'); const Component = React.Component;
-const { AppState, Keyboard, NativeModules, BackHandler } = require('react-native');
+const { AppState, Keyboard, NativeModules, BackHandler, Linking } = require('react-native');
 const { SafeAreaView } = require('react-navigation');
 const { connect, Provider } = require('react-redux');
 const { BackButtonService } = require('lib/services/back-button.js');
@@ -503,6 +503,14 @@ class AppComponent extends React.Component {
 	}
 
 	async componentDidMount() {
+		Linking.getInitialURL().then((url) => {
+			console.info('IIIIIIIIIIIIIIIIIIIIII');
+			if (url) {
+			console.log('Initial url is: ' + url);
+			}
+		}).catch(err => console.error('An error occurred', err));
+
+
 		if (this.props.appState == 'starting') {
 			this.props.dispatch({
 				type: 'APP_STATE_SET',
