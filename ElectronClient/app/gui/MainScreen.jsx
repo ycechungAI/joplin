@@ -4,6 +4,7 @@ const { Header } = require('./Header.min.js');
 const { SideBar } = require('./SideBar.min.js');
 const { NoteList } = require('./NoteList.min.js');
 const { NoteText } = require('./NoteText.min.js');
+const { NoteText2 } = require('./NoteText2.min.js');
 const { PromptDialog } = require('./PromptDialog.min.js');
 const Setting = require('lib/models/Setting.js');
 const BaseModel = require('lib/BaseModel.js');
@@ -431,7 +432,7 @@ class MainScreenComponent extends React.Component {
 				{messageComp}
 				<SideBar style={styles.sideBar} />
 				<NoteList style={styles.noteList} />
-				<NoteText style={styles.noteText} visiblePanes={this.props.noteVisiblePanes} />
+				<NoteText2 style={styles.noteText} visiblePanes={this.props.noteVisiblePanes} />
 			</div>
 		);
 	}
