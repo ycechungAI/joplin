@@ -1,5 +1,5 @@
 const React = require('react'); const Component = React.Component;
-const { Platform, Clipboard, Keyboard, BackHandler, View, Button, TextInput, WebView, Text, StyleSheet, Linking, Image, Share } = require('react-native');
+const { Platform, TouchableOpacity, Clipboard, Keyboard, BackHandler, View, Button, TextInput, WebView, Text, StyleSheet, Linking, Image, Share } = require('react-native');
 const { connect } = require('react-redux');
 const { uuid } = require('lib/uuid.js');
 const RNFS = require('react-native-fs');
@@ -13,6 +13,7 @@ const NavService = require('lib/services/NavService.js');
 const BaseModel = require('lib/BaseModel.js');
 const { ActionButton } = require('lib/components/action-button.js');
 const Icon = require('react-native-vector-icons/Ionicons').default;
+const FontAwesomeIcon = require('react-native-vector-icons/FontAwesome').default;
 const { fileExtension, basename, safeFileExtension } = require('lib/path-utils.js');
 const mimeUtils = require('lib/mime-utils.js').mime;
 const { ScreenHeader } = require('lib/components/screen-header.js');
@@ -55,7 +56,13 @@ class NoteScreenComponent extends BaseScreenComponent {
 			alarmDialogShown: false,
 			heightBumpView:0,
 			noteTagDialogShown: false,
+			selection: {
+				start: 0,
+				end: 0,
+			},
 		};
+
+		this.ignoreNextSelectionUpdate_ = false;
 
 		// iOS doesn't support multiline text fields properly so disable it
 		this.enableMultilineTitle_ = Platform.OS !== 'ios';
@@ -141,6 +148,15 @@ class NoteScreenComponent extends BaseScreenComponent {
 				dialogs.error(this, error.message);
 			}
 		}
+
+		this.body_selectionChange = (event) => {
+			// https://github.com/facebook/react-native/issues/19721#issuecomment-397448679
+			if (this.ignoreNextSelectionUpdate_) {
+				this.ignoreNextSelectionUpdate_ = false;
+			} else {
+				this.setState({ selection: event.nativeEvent.selection});
+			}
+		}
 	}
 
 	styles() {
@@ -172,6 +188,19 @@ class NoteScreenComponent extends BaseScreenComponent {
 				paddingRight: globalStyle.marginRight,
 				color: theme.color,
 			},
+			toolbar: {
+				display: 'flex',
+				flex: 0,
+				flexDirection: 'row',
+			},
+			toolbarButton: {
+				flex: 0,
+				backgroundColor: theme.backgroundColor,
+				width: 40,
+				height: 40,
+				alignItems: 'center',
+				justifyContent: 'center',
+			},
 		};
 
 		styles.titleContainer = {
@@ -185,6 +214,12 @@ class NoteScreenComponent extends BaseScreenComponent {
 
 		styles.titleContainerTodo = Object.assign({}, styles.titleContainer);
 		styles.titleContainerTodo.paddingLeft = 0;
+
+		styles.toolbarIcon = Object.assign({}, theme.icon);
+		styles.toolbarIcon.flex = 0;
+		styles.toolbarIcon.textAlignVertical = 'center';
+		styles.toolbarIcon.color = theme.color;
+		styles.toolbarIcon.fontSize = 25;
 
 		this.styles_[themeId] = StyleSheet.create(styles);
 		return this.styles_[themeId];
@@ -499,6 +534,84 @@ class NoteScreenComponent extends BaseScreenComponent {
 		this.setState({ titleTextInputHeight: height });
 	}
 
+	wrapSelectionWithStrings(string1, string2 = '') {
+		if (!this.state.note) return;
+
+		const body = this.state.note.body;
+		const selection = this.state.selection;
+		let newBody = '';
+		let newSelection = Object.assign({}, selection);
+
+
+		if (selection.start === selection.end) {
+			const left = body.substr(0, selection.start);
+			const right = body.substr(selection.end);
+			newBody = left + string1 + string2 + right;
+			const offset = left.length + string1.length;
+			newSelection = { start: offset, end: offset };
+		} else {
+			const left = body.substr(0, selection.start);
+			const middle = body.substr(selection.start, selection.end - selection.start);
+			const right = body.substr(selection.end);
+
+			console.info(left, middle, right);
+
+			newBody = left + string1 + middle + string2 + right;
+			newSelection = { start: left.length + string1.length, end: left.length + string1.length + middle.length };
+		}
+
+		const newNote = Object.assign({}, this.state.note);
+		newNote.body = newBody;
+		this.setState({
+			note: newNote,
+		});
+
+		shim.waitForFrame().then(() => {
+			this.ignoreNextSelectionUpdate_ = true;
+			this.setState({
+				selection: newSelection,
+			});
+		});
+	}
+
+	toolbarComponent() {
+		const styles = this.styles();
+
+		const buttons = [
+			{
+				icon: 'bold',
+				onPress: () => {
+					this.wrapSelectionWithStrings('**', '**');
+				},
+			},
+			{
+				icon: 'italic',
+				onPress: () => {
+					this.wrapSelectionWithStrings('*', '*');
+				},
+			},
+		];
+
+		const buttonComps = [];
+
+		for (let i = 0; i < buttons.length; i++) {
+			const button = buttons[i];
+			buttonComps.push(
+				<TouchableOpacity key={ button.icon } onPress={button.onPress}>
+					<View style={styles.toolbarButton}>
+						<FontAwesomeIcon name={ button.icon } style={ styles.toolbarIcon } />
+					</View>
+				</TouchableOpacity>
+			);
+		}
+
+		return (
+			<View style={ styles.toolbar }>
+				{ buttonComps }
+			</View>
+		);
+	}
+
 	render() {
 		if (this.state.isLoading) {
 			return (
@@ -542,6 +655,8 @@ class NoteScreenComponent extends BaseScreenComponent {
 					onChangeText={(text) => this.body_changeText(text)}
 					blurOnSubmit={false}
 					selectionColor={theme.textSelectionColor}
+					onSelectionChange={this.body_selectionChange}
+					selection={this.state.selection}
 				/>
 			);
 		}
@@ -557,7 +672,7 @@ class NoteScreenComponent extends BaseScreenComponent {
 				},
 			});
 
-			if (this.state.mode == 'edit') return null;//<ActionButton style={{display:'none'}}/>;
+			if (this.state.mode == 'edit') return null;
 
 			return <ActionButton multiStates={true} buttons={buttons} buttonIndex={0} />
 		}
@@ -613,6 +728,8 @@ class NoteScreenComponent extends BaseScreenComponent {
 
 		const noteTagDialog = !this.state.noteTagDialogShown ? null : <NoteTagsDialog onCloseRequested={this.noteTagDialog_closeRequested}/>;
 
+		const toolbarComp = this.state.mode === 'edit' ? this.toolbarComponent() : null;
+
 		return (
 			<View style={this.rootStyle(this.props.theme).root}>
 				<ScreenHeader
@@ -644,6 +761,7 @@ class NoteScreenComponent extends BaseScreenComponent {
 				/>
 				{ titleComp }
 				{ bodyComponent }
+				{ toolbarComp }
 				{ actionButtonComp }
 				{ this.state.showNoteMetadata && <Text style={this.styles().metadata}>{this.state.noteMetadata}</Text> }
 
