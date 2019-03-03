@@ -6,6 +6,7 @@ const { NoteList } = require('./NoteList.min.js');
 const { NoteText } = require('./NoteText.min.js');
 const { PromptDialog } = require('./PromptDialog.min.js');
 const NotePropertiesDialog = require('./NotePropertiesDialog.min.js');
+const TocDialog = require('./TocDialog.min.js');
 const Setting = require('lib/models/Setting.js');
 const BaseModel = require('lib/BaseModel.js');
 const Tag = require('lib/models/Tag.js');
@@ -25,6 +26,7 @@ class MainScreenComponent extends React.Component {
 		super();
 
 		this.notePropertiesDialog_close = this.notePropertiesDialog_close.bind(this);
+		this.tocDialog_close = this.tocDialog_close.bind(this);
 		this.sidebar_onDrag = this.sidebar_onDrag.bind(this);
 		this.noteList_onDrag = this.noteList_onDrag.bind(this);
 	}
@@ -41,6 +43,10 @@ class MainScreenComponent extends React.Component {
 		this.setState({ notePropertiesDialogOptions: {} });
 	}
 
+	tocDialog_close() {
+		this.setState({ tocDialogOptions: {} });
+	}
+
 	componentWillMount() {
 		this.setState({
 			promptOptions: null,
@@ -49,6 +55,7 @@ class MainScreenComponent extends React.Component {
 				message: '',
 			},
 			notePropertiesDialogOptions: {},
+			tocDialogOptions: {},
 		});
 	}
 
@@ -216,6 +223,13 @@ class MainScreenComponent extends React.Component {
 			this.setState({
 				notePropertiesDialogOptions: {
 					noteId: command.noteId,
+					visible: true,
+				},
+			});
+		} else if (command.name === 'commandToc') {
+			this.setState({
+				tocDialogOptions: {
+					bodyMd: command.bodyMd,
 					visible: true,
 				},
 			});
@@ -452,6 +466,14 @@ class MainScreenComponent extends React.Component {
 		const modalLayerStyle = Object.assign({}, styles.modalLayer, { display: this.state.modalLayer.visible ? 'block' : 'none' });
 
 		const notePropertiesDialogOptions = this.state.notePropertiesDialogOptions;
+		const tocDialogOptions = this.state.tocDialogOptions;
+
+		const tocDialog = !tocDialogOptions || !tocDialogOptions.visible ? null : <TocDialog
+			theme={this.props.theme}
+			bodyMd={tocDialogOptions.bodyMd}
+			visible={!!tocDialogOptions.visible}
+			onClose={this.tocDialog_close}
+		/>
 
 		return (
 			<div style={style}>
@@ -463,6 +485,8 @@ class MainScreenComponent extends React.Component {
 					visible={!!notePropertiesDialogOptions.visible}
 					onClose={this.notePropertiesDialog_close}
 				/>
+
+				{ tocDialog }
 
 				<PromptDialog
 					autocomplete={promptOptions && ('autocomplete' in promptOptions) ? promptOptions.autocomplete : null}

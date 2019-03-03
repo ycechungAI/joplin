@@ -109,25 +109,25 @@ class NotePropertiesDialog extends React.Component {
 		this.styles_ = {};
 		this.styleKey_ = styleKey;
 
-		this.styles_.modalLayer = {
-			zIndex: 9999,
-			display: 'flex',
-			position: 'absolute',
-			top: 0,
-			left: 0,
-			width: '100%',
-			height: '100%',
-			backgroundColor: 'rgba(0,0,0,0.6)',
-			alignItems: 'flex-start',
-			justifyContent: 'center',
-		};
+		// this.styles_.modalLayer = {
+		// 	zIndex: 9999,
+		// 	display: 'flex',
+		// 	position: 'absolute',
+		// 	top: 0,
+		// 	left: 0,
+		// 	width: '100%',
+		// 	height: '100%',
+		// 	backgroundColor: 'rgba(0,0,0,0.6)',
+		// 	alignItems: 'flex-start',
+		// 	justifyContent: 'center',
+		// };
 
-		this.styles_.dialogBox = {
-			backgroundColor: theme.backgroundColor,
-			padding: 16,
-			boxShadow: '6px 6px 20px rgba(0,0,0,0.5)',
-			marginTop: 20,
-		}
+		// this.styles_.dialogBox = {
+		// 	backgroundColor: theme.backgroundColor,
+		// 	padding: 16,
+		// 	boxShadow: '6px 6px 20px rgba(0,0,0,0.5)',
+		// 	marginTop: 20,
+		// }
 
 		this.styles_.controlBox = {
 			marginBottom: '1em',
@@ -160,7 +160,7 @@ class NotePropertiesDialog extends React.Component {
 			borderColor: theme.dividerColor,
 		};
 
-		this.styles_.dialogTitle = Object.assign({}, theme.h1Style, { marginBottom: '1.2em' });
+		// this.styles_.dialogTitle = Object.assign({}, theme.h1Style, { marginBottom: '1.2em' });
 
 		return this.styles_;
 	}
@@ -379,7 +379,7 @@ class NotePropertiesDialog extends React.Component {
 
 		const noteComps = [];
 
-		const modalLayerStyle = Object.assign({}, styles.modalLayer);
+		const modalLayerStyle = Object.assign({}, theme.dialogModalLayer);
 		if (!this.state.visible) modalLayerStyle.display = 'none';
 
 		if (formNote) {
@@ -392,8 +392,8 @@ class NotePropertiesDialog extends React.Component {
 
 		return (
 			<div style={modalLayerStyle}>
-				<div style={styles.dialogBox}>
-					<div style={styles.dialogTitle}>{_('Note properties')}</div>
+				<div style={theme.dialogBox}>
+					<div style={theme.dialogTitle}>{_('Note properties')}</div>
 					<div>{noteComps}</div>
 					<div style={{ textAlign: 'right', marginTop: 10 }}>
 						{buttonComps}

@@ -197,6 +197,28 @@ function addExtraStyles(style) {
 		}
 	);
 
+	style.dialogModalLayer = {
+		zIndex: 9999,
+		display: 'flex',
+		position: 'absolute',
+		top: 0,
+		left: 0,
+		width: '100%',
+		height: '100%',
+		backgroundColor: 'rgba(0,0,0,0.6)',
+		alignItems: 'flex-start',
+		justifyContent: 'center',
+	};
+
+	style.dialogBox = {
+		backgroundColor: style.backgroundColor,
+		padding: 16,
+		boxShadow: '6px 6px 20px rgba(0,0,0,0.5)',
+		marginTop: 20,
+	}
+
+	style.dialogTitle = Object.assign({}, style.h1Style, { marginBottom: '1.2em' });
+
 	return style;
 }
 

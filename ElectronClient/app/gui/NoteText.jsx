@@ -1429,6 +1429,21 @@ class NoteTextComponent extends React.Component {
 		});
 
 		toolbarItems.push({
+			tooltip: _('Table of contents'),
+			iconName: 'fa-list-alt',
+			onClick: () => {
+				const n = this.state.note;
+				if (!n || !n.body) return;
+
+				this.props.dispatch({
+					type: 'WINDOW_COMMAND',
+					name: 'commandToc',
+					bodyMd: n.body,
+				});
+			},
+		});
+
+		toolbarItems.push({
 			type: 'separator',
 		});
 

@@ -85,6 +85,29 @@ const markdownUtils = {
 		return output.join('\n');
 	},
 
+	createHtmlToc(markdown) {
+		if (!this.createHtmlTocParser_) {
+			// TODO: Check options
+			// TODO: is markdown-it-anchor needed?
+			// TODO: add require() on top of file
+			this.createHtmlTocParser_ = require("markdown-it")({
+				html: false,
+				xhtmlOut: true,
+				typographer: true
+			});
+			this.createHtmlTocParser_.use(require("markdown-it-anchor"), { permalink: true, permalinkBefore: true, permalinkSymbol: '§' })
+			this.createHtmlTocParser_.use(require("markdown-it-toc-done-right"));
+		}
+
+		// markdown-it is going to return the complete HTML document, but we only want the TOC
+		// so wrap the token with globally unique markers, and extract the HTML TOC once the
+		// document has been parsed.
+
+		const marker = '2A4C045DAAD24A99B82F17AF2DDD2849';
+		let result = this.createHtmlTocParser_.render(marker + '\n${toc}\n' + marker + '\n' + markdown);
+		let tocHtml = result.split(marker)[1];
+		return tocHtml;
+	},
 
 };
 
