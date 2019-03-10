@@ -1,5 +1,5 @@
 const React = require('react'); const Component = React.Component;
-const { TouchableOpacity , Button, Text, Image, StyleSheet, ScrollView, View } = require('react-native');
+const { TouchableOpacity , Button, Text, Image, StyleSheet, ScrollView, View, Dimensions } = require('react-native');
 const { connect } = require('react-redux');
 const Icon = require('react-native-vector-icons/Ionicons').default;
 const Tag = require('lib/models/Tag.js');
@@ -12,6 +12,10 @@ const { reg } = require('lib/registry.js');
 const { _ } = require('lib/locale.js');
 const { globalStyle, themeStyle } = require('lib/components/global-style.js');
 const shared = require('lib/components/shared/side-menu-shared.js');
+const { SafeAreaView } = require('react-navigation');
+const orderItemsMenu = require('./shared/orderItemsMenu');
+const { dialogs } = require('lib/dialogs.js');
+const DialogBox = require('react-native-dialogbox').default;
 
 class SideMenuContentComponent extends Component {
 
@@ -21,6 +25,8 @@ class SideMenuContentComponent extends Component {
 			//width: 0,
 		};
 		this.styles_ = {};
+
+		this.sortButton_press = this.sortButton_press.bind(this);
 	}
 
 	styles() {
@@ -32,7 +38,9 @@ class SideMenuContentComponent extends Component {
 		let styles = {
 			menu: {
 				flex: 1,
-				backgroundColor: theme.backgroundColor
+				backgroundColor: theme.backgroundColor,
+				// borderWidth: 1,
+				// borderColor: 'green',
 			},
 			button: {
 				flex: 1,
@@ -116,6 +124,10 @@ class SideMenuContentComponent extends Component {
 		if (actionDone === 'auth') this.props.dispatch({ type: 'SIDE_MENU_CLOSE' });
 	}
 
+	async sortButton_press() {
+		await orderItemsMenu(this, dialogs, 'folders');
+	}
+
 	folderItem(folder, selected, hasChildren, depth) {
 		const theme = themeStyle(this.props.theme);
 
@@ -188,6 +200,29 @@ class SideMenuContentComponent extends Component {
 		return <View style={{ marginTop: 15, marginBottom: 15, flex: -1, borderBottomWidth: 1, borderBottomColor: globalStyle.dividerColor }} key={key}></View>
 	}
 
+	makeButtonBar(theme) {
+		const iconButtonStyle = 		{
+			flex: 0,
+			width: 52,
+			height: 52,
+			justifyContent: 'center',
+			alignItems: 'center',
+		};
+
+		const topIconStyle = Object.assign({}, theme.icon);
+		topIconStyle.color = theme.raisedColor;
+
+		return (
+			<View style={{flex:0, flexDirection:'row', justifyContent:'flex-end'}}>
+				<TouchableOpacity onPress={this.sortButton_press}>
+					<View style={iconButtonStyle}>
+						<Icon name='md-funnel' style={topIconStyle} />
+					</View>
+				</TouchableOpacity>
+			</View>
+		);
+	}
+
 	render() {
 		let items = [];
 
@@ -195,7 +230,7 @@ class SideMenuContentComponent extends Component {
 
 		// HACK: inner height of ScrollView doesn't appear to be calculated correctly when
 		// using padding. So instead creating blank elements for padding bottom and top.
-		items.push(<View style={{ height: globalStyle.marginTop }} key='bottom_top_hack'/>);
+		// items.push(<View style={{ height: globalStyle.marginTop }} key='bottom_top_hack'/>);
 
 		if (this.props.folders.length) {
 			const result = shared.renderFolders(this.props, this.folderItem.bind(this));
@@ -251,13 +286,41 @@ class SideMenuContentComponent extends Component {
 			backgroundColor: theme.backgroundColor,
 		};
 
+		const buttonBarComp = this.makeButtonBar(theme);
+
+		// const screen = Dimensions.get('window');
+
+		const dialogBoxStyle = {
+				popupContainer: {
+				position: 'absolute',
+				top: 0,
+				left: 0,
+				justifyContent: 'center',
+				alignItems: 'center',
+				width: 200,
+				height: 200,
+				overflow: 'hidden',
+				backgroundColor: 'rgba(00, 00, 00, 0)',
+			},
+			tipBoxView: {
+				backgroundColor: '#fff',
+				justifyContent: 'center',
+				alignItems: 'center',
+				width: 200,
+				borderRadius: 12,
+				overflow: 'hidden',
+			}
+		};
+
 		return (
 			<View style={style}>
 				<View style={{flex:1, opacity: this.props.opacity}}>
+					{buttonBarComp}
 					<ScrollView scrollsToTop={false} style={this.styles().menu}>
 						{ items }
 					</ScrollView>
 				</View>
+				<DialogBox style={dialogBoxStyle} ref={dialogbox => { this.dialogbox = dialogbox }}/>
 			</View>
 		);
 	}

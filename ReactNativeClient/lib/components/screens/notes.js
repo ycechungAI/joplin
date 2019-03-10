@@ -15,6 +15,7 @@ const { _ } = require('lib/locale.js');
 const { ActionButton } = require('lib/components/action-button.js');
 const { dialogs } = require('lib/dialogs.js');
 const DialogBox = require('react-native-dialogbox').default;
+const orderItemsMenu = require('../shared/orderItemsMenu');
 const { BaseScreenComponent } = require('lib/components/base-screen.js');
 
 class NotesScreenComponent extends BaseScreenComponent {
@@ -34,41 +35,7 @@ class NotesScreenComponent extends BaseScreenComponent {
 		}
 
 		this.sortButton_press = async () => {
-			const buttons = [];
-			const sortNoteOptions = Setting.enumOptions('notes.sortOrder.field');
-
-			const makeCheckboxText = function(selected, sign, label) {
-				const s = sign === 'tick' ? '✓' : '⬤'
-				return (selected ? (s + ' ') : '') + label;
-			}
-
-			for (let field in sortNoteOptions) {
-				if (!sortNoteOptions.hasOwnProperty(field)) continue;
-				buttons.push({
-					text: makeCheckboxText(Setting.value('notes.sortOrder.field') === field, 'bullet', sortNoteOptions[field]),
-					id: { name: 'notes.sortOrder.field', value: field },
-				});
-			}
-
-			buttons.push({
-				text: makeCheckboxText(Setting.value('notes.sortOrder.reverse'), 'tick', '[ ' + Setting.settingMetadata('notes.sortOrder.reverse').label() + ' ]'),
-				id: { name: 'notes.sortOrder.reverse', value: !Setting.value('notes.sortOrder.reverse') },
-			});
-
-			buttons.push({
-				text: makeCheckboxText(Setting.value('uncompletedTodosOnTop'), 'tick', '[ ' + Setting.settingMetadata('uncompletedTodosOnTop').label() + ' ]'),
-				id: { name: 'uncompletedTodosOnTop', value: !Setting.value('uncompletedTodosOnTop') },
-			});
-
-			buttons.push({
-				text: makeCheckboxText(Setting.value('showCompletedTodos'), 'tick', '[ ' + Setting.settingMetadata('showCompletedTodos').label() + ' ]'),
-				id: { name: 'showCompletedTodos', value: !Setting.value('showCompletedTodos') },
-			});
-
-			const r = await dialogs.pop(this, Setting.settingMetadata('notes.sortOrder.field').label(), buttons);
-			if (!r) return;
-
-			Setting.setValue(r.name, r.value);
+			await orderItemsMenu(this, dialogs, 'notes');
 		}
 	}
 

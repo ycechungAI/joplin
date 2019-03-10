@@ -40,6 +40,8 @@ dialogs.pop = (parentComponent, message, buttons, options = null) => {
 	if (!options) options = {};
 	if (!('buttonFlow' in options)) options.buttonFlow = 'auto';
 
+	const style = options.style ? options.style : {};
+
 	return new Promise((resolve, reject) => {
 		Keyboard.dismiss();
 
@@ -58,6 +60,7 @@ dialogs.pop = (parentComponent, message, buttons, options = null) => {
 			content: message, 
 			btns: btns,
 			buttonFlow: options.buttonFlow,
+			style: style,
 		});
 	});
 }
