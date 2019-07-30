@@ -58,6 +58,52 @@ function gradleVersionName(content) {
 	return matches[1];
 }
 
+async function replaceFileContent(filePath, originalContents, operations) {
+	let content = await fs.readFile(filePath, 'utf8');
+	originalContents[filePath] = content;
+	for (const op of operations) {
+		if (!content.match(op[0])) throw new Error('In: ' + filePath + ' String not found: ' + op[0]);
+		content = content.replace(op[0], op[1]);
+	}
+	await fs.writeFile(filePath, content);
+}
+
+// async function patchFiles(releaseName) {
+// 	const originalContents = {};
+// 	if (releaseName === 'gsmfree') {
+// 		await replaceFileContent(rnDir + '/android/app/build.gradle', originalContents, [
+// 			[ /compile project\(':react-native-push-notification'\)/, '' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/package.json', originalContents, [
+// 			[ /"react-native-push-notification":.*/, '' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/android/app/src/main/AndroidManifest.xml', originalContents, [
+// 			[ /<!-- START RN-push-notitication {4}-->[\S\s]*<!-- END RN-push-notitication {6}-->/gi, '' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/android/app/src/main/java/net/cozic/joplin/MainApplication.java', originalContents, [
+// 			[ /import com\.dieam\.reactnativepushnotification\.ReactNativePushNotificationPackage;/, '' ],
+// 			[ /new ReactNativePushNotificationPackage\(\),/, '' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/android/settings.gradle', originalContents, [
+// 			[ /include ':react-native-push-notification'/, '' ],
+// 			[ /project\(':react-native-push-notification'\)\.projectDir =.*/, '' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/lib/components/screens/note.js', originalContents, [
+// 			[ /this\.setState\({ alarmDialogShown: true }\);/g, 'alert(\'In this GMS-free version of Joplin, alarms are not supported.\');' ],
+// 		]);
+
+// 		await replaceFileContent(rnDir + '/lib/services/AlarmServiceDriver.android.js', originalContents, [
+// 			[ /const PushNotification = require\('react-native-push-notification'\);/, 'const PushNotification = {};' ],
+// 		]);
+// 	}
+// 	return originalContents;
+// }
+
 async function createRelease(name, tagName, version) {
 	const originalContents = {};
 	const suffix = version + (name === 'main' ? '' : '-' + name);
@@ -65,12 +111,24 @@ async function createRelease(name, tagName, version) {
 	console.info('Creating release: ' + suffix);
 
 	if (name === '32bit') {
-		let filename = rnDir + '/android/app/build.gradle';
-		let content = await fs.readFile(filename, 'utf8');
-		originalContents[filename] = content;
-		content = content.replace(/abiFilters "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'abiFilters "armeabi-v7a", "x86"');
-		content = content.replace(/include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'include "armeabi-v7a", "x86"');
-		await fs.writeFile(filename, content);
+		await replaceFileContent(rnDir + '/android/app/build.gradle', originalContents, [
+			[ /abiFilters "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'abiFilters "armeabi-v7a", "x86"' ],
+			[ /include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'include "armeabi-v7a", "x86"' ],
+		]);
+
+		// let filename = rnDir + '/android/app/build.gradle';
+		// let content = await fs.readFile(filename, 'utf8');
+		// originalContents[filename] = content;
+		// content = content.replace(/abiFilters "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'abiFilters "armeabi-v7a", "x86"');
+		// content = content.replace(/include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'include "armeabi-v7a", "x86"');
+		// await fs.writeFile(filename, content);
+	}
+
+	if (name === 'gsmfree') {
+		// await replaceFileContent([
+		// 	[ /abiFilters "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'abiFilters "armeabi-v7a", "x86"' ]
+		// 	[ /include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"/, 'include "armeabi-v7a", "x86"' ],
+		// ]);
 	}
 
 	const apkFilename = 'joplin-v' + suffix + '.apk';
@@ -140,12 +198,17 @@ async function createRelease(name, tagName, version) {
 }
 
 async function main() {
+
+	// await patchFiles('gsmfree');
+	// return;
+
+
 	console.info('Updating version numbers in build.gradle...');
 
 	const newContent = updateGradleConfig();
 	const version = gradleVersionName(newContent);
 	const tagName = 'android-v' + version;
-	const releaseNames = ['main', '32bit'];
+	const releaseNames = ['main', '32bit', 'gsmfree'];
 	const releaseFiles = {};
 
 	for (const releaseName of releaseNames) {
