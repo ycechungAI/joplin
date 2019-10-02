@@ -78,14 +78,6 @@ export function removeFilePathPrefix(path:string):string {
 	return p[1];
 }
 
-// export interface FileId {
-
-// }
-
-// export function parseFileId(id:string):FileId {
-
-// }
-
 export function isPathBasedAddressing(fileId:string):boolean {
 	if (!fileId) return false;
 	return fileId.indexOf(':') >= 0;

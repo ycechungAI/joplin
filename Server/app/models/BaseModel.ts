@@ -4,7 +4,6 @@ import { transactionHandler } from '../utils/dbUtils';
 import uuidgen from '../utils/uuidgen';
 import { ErrorUnprocessableEntity, ErrorBadRequest } from '../utils/errors';
 import cache from '../utils/cache';
-import ApiClientModel from './ApiClientModel';
 
 export interface ModelOptions {
 	userId?: string

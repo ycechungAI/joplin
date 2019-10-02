@@ -5,6 +5,7 @@ import * as Koa from 'koa';
 import apiSessionsRoute from './routes/api/sessions';
 import apiPingRoute from './routes/api/ping';
 import apiFilesRoute from './routes/api/files';
+import indexRoute from './routes/index';
 import { ErrorNotFound } from './utils/errors';
 import * as fs from 'fs-extra';
 import * as koaBody from 'koa-body';
@@ -23,6 +24,7 @@ const routes:Routes = {
 	'api/ping': apiPingRoute,
 	'api/sessions': apiSessionsRoute,
 	'api/files': apiFilesRoute,
+	'': indexRoute,
 };
 
 const koaBodyMiddleware = koaBody({
