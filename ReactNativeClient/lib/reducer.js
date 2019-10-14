@@ -504,6 +504,11 @@ const reducer = (state = defaultState, action) => {
 			newState.collapsedFolderIds = action.ids.slice();
 			break;
 
+		case 'TRASH_SELECT':
+			newState = Object.assign({}, state);
+			newState.notesParentType = 'Trash';
+			break;
+
 		case 'TAG_UPDATE_ALL':
 			newState = Object.assign({}, state);
 			newState.tags = action.items;

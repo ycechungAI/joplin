@@ -419,4 +419,19 @@ describe('services_Revision', function() {
 		expect((await Revision.all()).length).toBe(2);
 	}));
 
+	it('should list the notes that have been deleted', asyncTest(async () => {
+		const n1 = await Note.save({ title: 'hello' });
+		const n2 = await Note.save({ title: 'hello' });
+
+		await Note.delete(n1.id);
+		await Note.delete(n2.id);
+
+		await revisionService().collectRevisions();
+
+		const revisions = await Revision.deletedNotesRevisions();
+
+		expect(Object.keys(revisions).length).toBe(2);
+		expect(JSON.stringify(Object.keys(revisions).sort())).toBe(JSON.stringify([n1.id, n2.id].sort()));
+	}));
+
 });

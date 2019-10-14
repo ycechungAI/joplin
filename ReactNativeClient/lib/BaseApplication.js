@@ -210,6 +210,9 @@ class BaseApplication {
 		} else if (parentType === 'Search') {
 			parentId = state.selectedSearchId;
 			parentType = BaseModel.TYPE_SEARCH;
+		} else if (parentType === 'Trash') {
+			parentId = 'trash';
+			parentType = BaseModel.TYPE_TRASH;
 		}
 
 		this.logger().debug('Refreshing notes:', parentType, parentId);
@@ -236,6 +239,8 @@ class BaseApplication {
 			} else if (parentType === BaseModel.TYPE_SEARCH) {
 				const search = BaseModel.byId(state.searches, parentId);
 				notes = await SearchEngineUtils.notesForQuery(search.query_pattern);
+			} else if (parentType === BaseModel.TYPE_TRASH) {
+				notes = await RevisionService.instance().deletedNotes(options);
 			}
 		}
 
@@ -433,6 +438,10 @@ class BaseApplication {
 		}
 
 		if (action.type == 'SEARCH_SELECT' || action.type === 'SEARCH_DELETE') {
+			refreshNotes = true;
+		}
+
+		if (action.type == 'TRASH_SELECT' || action.type === 'TRASH_DELETE') {
 			refreshNotes = true;
 		}
 

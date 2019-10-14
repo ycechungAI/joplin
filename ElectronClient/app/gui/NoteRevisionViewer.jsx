@@ -85,14 +85,9 @@ class NoteRevisionViewerComponent extends React.PureComponent {
 		if (!value) {
 			if (this.props.onBack) this.props.onBack();
 		} else {
-			this.setState(
-				{
-					currentRevId: value,
-				},
-				() => {
-					this.reloadNote();
-				}
-			);
+			this.setState({ currentRevId: value }, () => {
+				this.reloadNote();
+			});
 		}
 	}
 

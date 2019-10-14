@@ -249,6 +249,16 @@ class Revision extends BaseItem {
 		}
 	}
 
+	static async deletedNotesRevisions() {
+		const revs = await this.db().selectAll('select * from revisions where item_id not in (select id from notes) ORDER BY item_updated_time ASC');
+		const output = {};
+		for (const rev of revs) {
+			if (!output[rev.item_id]) output[rev.item_id] = [];
+			output[rev.item_id].push(rev);
+		}
+		return output;
+	}
+
 	static async revisionExists(itemType, itemId, updatedTime) {
 		const existingRev = await Revision.latestRevision(itemType, itemId);
 		return existingRev && existingRev.item_updated_time === updatedTime;

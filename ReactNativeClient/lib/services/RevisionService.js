@@ -187,11 +187,42 @@ class RevisionService extends BaseService {
 		return Revision.deleteOldRevisions(ttl);
 	}
 
-	async revisionNote(revisions, index) {
-		if (index < 0 || index >= revisions.length) throw new Error(`Invalid revision index: ${index}`);
+	async deletedNotes(/* options = null */) {
+		// // Note: options are ignored for now
+		// options = Object.assign({}, {
+		// 	order: {
+		// 		by: 'updated_time',
+		// 		dir: 'DESC',
+		// 	},
+		// }, options);
 
-		const rev = revisions[index];
-		const merged = await Revision.mergeDiffs(rev, revisions);
+		const noteRevisions = await Revision.deletedNotesRevisions();
+		const output = [];
+		for (let entry of Object.entries(noteRevisions)) {
+			const revisions = entry[1];
+			const note = await this.revisionNote(revisions, 0);
+			const r0 = revisions[0];
+			note.updated_time = r0.created_time;
+			note.created_time = r0.created_time;
+			if (!('user_updated_time' in note)) note.user_updated_time = note.updated_time;
+			if (!('user_created_time' in note)) note.user_created_time = note.created_time;
+			output.push(note);
+		}
+
+		output.sort((a, b) => {
+			if (a.updated_time < b.updated_time) return +1;
+			if (a.updated_time > b.updated_time) return -1;
+			return 0;
+		});
+
+		return output;
+	}
+
+	async revisionNote(noteRevisions, index) {
+		if (index < 0 || index >= noteRevisions.length) throw new Error(`Invalid revision index: ${index}`);
+
+		const rev = noteRevisions[index];
+		const merged = await Revision.mergeDiffs(rev, noteRevisions);
 
 		const output = Object.assign(
 			{

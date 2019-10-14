@@ -76,12 +76,18 @@ class SideBarComponent extends React.Component {
 			}
 		};
 
-		this.onFolderToggleClick_ = async event => {
+		this.onFolderToggleClick_ = event => {
 			const folderId = event.currentTarget.getAttribute('folderid');
 
 			this.props.dispatch({
 				type: 'FOLDER_TOGGLE',
 				id: folderId,
+			});
+		};
+
+		this.onTrashClick_ = () => {
+			this.props.dispatch({
+				type: 'TRASH_SELECT',
 			});
 		};
 
@@ -493,37 +499,21 @@ class SideBarComponent extends React.Component {
 		);
 	}
 
-	// searchItem(search, selected) {
-	// 	let style = Object.assign({}, this.style().listItem);
-	// 	if (selected) style = Object.assign(style, this.style().listItemSelected);
-	// 	return (
-	// 		<a
-	// 			className="list-item"
-	// 			href="#"
-	// 			data-id={search.id}
-	// 			data-type={BaseModel.TYPE_SEARCH}
-	// 			onContextMenu={event => this.itemContextMenu(event)}
-	// 			key={search.id}
-	// 			style={style}
-	// 			onClick={() => {
-	// 				this.searchItem_click(search);
-	// 			}}
-	// 		>
-	// 			{search.title}
-	// 		</a>
-	// 	);
-	// }
-
 	makeDivider(key) {
 		return <div style={{ height: 2, backgroundColor: 'blue' }} key={key} />;
 	}
 
 	makeHeader(key, label, iconName, extraProps = {}) {
+		const theme = themeStyle(this.props.theme);
 		const style = this.style().header;
 		const icon = <i style={{ fontSize: style.fontSize, marginRight: 5 }} className={`fa ${iconName}`} />;
 
 		if (extraProps.toggleblock || extraProps.onClick) {
 			style.cursor = 'pointer';
+		}
+
+		if (extraProps.selected) {
+			style.backgroundColor = theme.selectedColor2;
 		}
 
 		let headerClick = extraProps.onClick || null;
@@ -731,6 +721,13 @@ class SideBarComponent extends React.Component {
 				</div>
 			);
 		}
+
+		items.push(
+			this.makeHeader('trashHeader', _('Recycle Bin'), 'fa-trash', {
+				onClick: this.onTrashClick_,
+				selected: this.props.notesParentType === 'Trash',
+			})
+		);
 
 		let decryptionReportText = '';
 		if (this.props.decryptionWorker && this.props.decryptionWorker.state !== 'idle' && this.props.decryptionWorker.itemCount) {
