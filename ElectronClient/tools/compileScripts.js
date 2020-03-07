@@ -44,6 +44,7 @@ function convertJsx(path) {
 module.exports = function() {
 	convertJsx(`${__dirname}/../gui`);
 	convertJsx(`${__dirname}/../plugins`);
+	convertJsx(`${__dirname}/../tests`);
 
 	const libContent = [
 		fs.readFileSync(`${basePath}/ReactNativeClient/lib/string-utils-common.js`, 'utf8'),
