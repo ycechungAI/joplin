@@ -23,7 +23,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 15000; // The first test is slow because the 
 
 let service = null;
 
-describe('Encryption', function() {
+describe('services_EncryptionService', function() {
 
 	beforeEach(async (done) => {
 		await setupDatabaseAndSynchronizer(1);
@@ -49,7 +49,6 @@ describe('Encryption', function() {
 
 	it('should generate and decrypt a master key', asyncTest(async () => {
 		const masterKey = await service.generateMasterKey('123456');
-		expect(!!masterKey.checksum).toBe(true);
 		expect(!!masterKey.content).toBe(true);
 
 		let hasThrown = false;
@@ -63,6 +62,37 @@ describe('Encryption', function() {
 
 		const decryptedMasterKey = await service.decryptMasterKey_(masterKey, '123456');
 		expect(decryptedMasterKey.length).toBe(512);
+	}));
+
+	it('should require a checksum only for old master keys', asyncTest(async () => {
+		const masterKey = await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_2,
+		});
+
+		expect(!!masterKey.checksum).toBe(true);
+		expect(!!masterKey.content).toBe(true);
+	}));
+
+	it('should not require a checksum for new master keys', asyncTest(async () => {
+		const masterKey = await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_4,
+		});
+
+		expect(!masterKey.checksum).toBe(true);
+		expect(!!masterKey.content).toBe(true);
+
+		const decryptedMasterKey = await service.decryptMasterKey_(masterKey, '123456');
+		expect(decryptedMasterKey.length).toBe(512);
+	}));
+
+	it('should throw an error if master key decryption fails', asyncTest(async () => {
+		const masterKey = await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_4,
+		});
+
+		const hasThrown = await checkThrowAsync(async () => await service.decryptMasterKey_(masterKey, 'wrong'));
+
+		expect(hasThrown).toBe(true);
 	}));
 
 	it('should encrypt and decrypt with a master key', asyncTest(async () => {

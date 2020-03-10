@@ -29,7 +29,7 @@ class EncryptionService {
 		this.loadedMasterKeys_ = {};
 		this.activeMasterKeyId_ = null;
 		this.defaultEncryptionMethod_ = EncryptionService.METHOD_SJCL_1A;
-		this.defaultMasterKeyEncryptionMethod_ = EncryptionService.METHOD_SJCL_2;
+		this.defaultMasterKeyEncryptionMethod_ = EncryptionService.METHOD_SJCL_4;
 		this.logger_ = new Logger();
 
 		this.headerTemplates_ = {
@@ -236,7 +236,9 @@ class EncryptionService {
 
 		const bytes = await shim.randomBytes(256);
 		const hexaBytes = bytes.map(a => hexPad(a.toString(16), 2)).join('');
-		const checksum = this.sha256(hexaBytes);
+
+		// Checksum is not necessary since decryption will already fail if data is invalid
+		const checksum = options.encryptionMethod === EncryptionService.METHOD_SJCL_2 ? this.sha256(hexaBytes) : '';
 		const cipherText = await this.encrypt(options.encryptionMethod, password, hexaBytes);
 
 		return {
@@ -259,8 +261,10 @@ class EncryptionService {
 
 	async decryptMasterKey_(model, password) {
 		const plainText = await this.decrypt(model.encryption_method, password, model.content);
-		const checksum = this.sha256(plainText);
-		if (checksum !== model.checksum) throw new Error('Could not decrypt master key (checksum failed)');
+		if (model.encryption_method === EncryptionService.METHOD_SJCL_2) {
+			const checksum = this.sha256(plainText);
+			if (checksum !== model.checksum) throw new Error('Could not decrypt master key (checksum failed)');
+		}
 		return plainText;
 	}
 
