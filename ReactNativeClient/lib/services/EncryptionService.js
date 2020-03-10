@@ -107,13 +107,6 @@ class EncryptionService {
 			if (!password) continue;
 
 			try {
-				// if (mk.encryption_method != this.defaultMasterKeyEncryptionMethod_) {
-				// 	const newMkContent = await this.generateMasterKeyContent_(password);
-				// 	mk = Object.assign({}, mk, newMkContent);
-				// 	await MasterKey.save(mk);
-				// 	this.logger().info(`Master key ${mk.id} is using a deprectated encryption method. It has been upgraded to the new method.`);
-				// }
-
 				await this.loadMasterKey_(mk, password, activeMasterKeyId === mk.id);
 			} catch (error) {
 				this.logger().warn(`Cannot load master key ${mk.id}. Invalid password?`, error);
@@ -229,6 +222,24 @@ class EncryptionService {
 			.join('');
 	}
 
+	async upgradeMasterKey(newEncryptionMethod, model, decryptionPassword) {
+		const plainText = await this.decryptMasterKey_(model, decryptionPassword);
+		const newContent = await this.encryptMasterKeyContent_(newEncryptionMethod, plainText, decryptionPassword);
+		return { ...model, ...newContent };
+	}
+
+	async encryptMasterKeyContent_(encryptionMethod, hexaBytes, password) {
+		// Checksum is not necessary since decryption will already fail if data is invalid
+		const checksum = encryptionMethod === EncryptionService.METHOD_SJCL_2 ? this.sha256(hexaBytes) : '';
+		const cipherText = await this.encrypt(encryptionMethod, password, hexaBytes);
+
+		return {
+			checksum: checksum,
+			encryption_method: encryptionMethod,
+			content: cipherText,
+		};
+	}
+
 	async generateMasterKeyContent_(password, options = null) {
 		options = Object.assign({}, {
 			encryptionMethod: this.defaultMasterKeyEncryptionMethod_,
@@ -237,15 +248,7 @@ class EncryptionService {
 		const bytes = await shim.randomBytes(256);
 		const hexaBytes = bytes.map(a => hexPad(a.toString(16), 2)).join('');
 
-		// Checksum is not necessary since decryption will already fail if data is invalid
-		const checksum = options.encryptionMethod === EncryptionService.METHOD_SJCL_2 ? this.sha256(hexaBytes) : '';
-		const cipherText = await this.encrypt(options.encryptionMethod, password, hexaBytes);
-
-		return {
-			checksum: checksum,
-			encryption_method: options.encryptionMethod,
-			content: cipherText,
-		};
+		return this.encryptMasterKeyContent_(options.encryptionMethod, hexaBytes, password);
 	}
 
 	async generateMasterKey(password, options = null) {

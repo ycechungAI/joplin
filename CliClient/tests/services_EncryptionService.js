@@ -64,6 +64,43 @@ describe('services_EncryptionService', function() {
 		expect(decryptedMasterKey.length).toBe(512);
 	}));
 
+	it('should upgrade a master key', asyncTest(async () => {
+		// Create an old style master key
+		let masterKey = await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_2,
+		});
+		masterKey = await MasterKey.save(masterKey);
+
+		let upgradedMasterKey = await service.upgradeMasterKey(EncryptionService.METHOD_SJCL_4, masterKey, '123456');
+		upgradedMasterKey = await MasterKey.save(upgradedMasterKey);
+
+		// Check that master key has been upgraded (different ciphertext)
+		expect(masterKey.content).not.toBe(upgradedMasterKey.content);
+
+		// Check that master key plain text is still the same
+		const plainTextOld = await service.decryptMasterKey_(masterKey, '123456');
+		const plainTextNew = await service.decryptMasterKey_(upgradedMasterKey, '123456');
+		expect(plainTextOld.content).toBe(plainTextNew.content);
+
+		// Check that old content can be decrypted with new master key
+		await service.loadMasterKey_(masterKey, '123456', true);
+		const cipherText = await service.encryptString('some secret');
+		const plainTextFromOld = await service.decryptString(cipherText);
+
+		await service.loadMasterKey_(upgradedMasterKey, '123456', true);
+		const plainTextFromNew = await service.decryptString(cipherText);
+
+		expect(plainTextFromOld).toBe(plainTextFromNew);
+	}));
+
+	it('should not upgrade master key if invalid password', asyncTest(async () => {
+		let masterKey = await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_2,
+		});
+
+		const hasThrown = await checkThrowAsync(async () => await service.upgradeMasterKey(EncryptionService.METHOD_SJCL_4, masterKey, '777'));
+	}));
+
 	it('should require a checksum only for old master keys', asyncTest(async () => {
 		const masterKey = await service.generateMasterKey('123456', {
 			encryptionMethod: EncryptionService.METHOD_SJCL_2,
