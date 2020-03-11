@@ -15,28 +15,18 @@ class EncryptionConfigScreenComponent extends React.Component {
 		shared.constructor(this);
 	}
 
-	componentDidMount() {
-		this.isMounted_ = true;
-	}
-
 	componentWillUnmount() {
 		this.isMounted_ = false;
-	}
-
-	initState(props) {
-		return shared.initState(this, props);
-	}
-
-	async refreshStats() {
-		return shared.refreshStats(this);
+		shared.componentWillUnmount();
 	}
 
 	componentDidMount() {
-		this.initState(this.props);
+		this.isMounted_ = true;
+		shared.componentDidMount(this);
 	}
 
-	UNSAFE_componentWillReceiveProps(nextProps) {
-		this.initState(nextProps);
+	componentDidUpdate(prevProps) {
+		shared.componentDidUpdate(this, prevProps);
 	}
 
 	async checkPasswords() {
@@ -61,7 +51,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 			return shared.onPasswordChange(this, mk, event.target.value);
 		};
 
-		const password = this.state.passwords[mk.id] ? this.state.passwords[mk.id] : '';
+		const password = this.props.passwords[mk.id] ? this.props.passwords[mk.id] : '';
 		const active = this.props.activeMasterKeyId === mk.id ? '✔' : '';
 		const passwordOk = this.state.passwordChecks[mk.id] === true ? '✔' : '❌';
 
@@ -83,9 +73,43 @@ class EncryptionConfigScreenComponent extends React.Component {
 		);
 	}
 
+	renderNeedUpgradeSection() {
+		if (!this.state.needUpgradeMasterKeys.length) return null;
+
+		const theme = themeStyle(this.props.theme);
+
+		const rows = [];
+		const comp = this;
+
+		for (const mk of this.state.needUpgradeMasterKeys) {
+			rows.push(
+				<tr key={mk.id}>
+					<td style={theme.textStyle}>{mk.id}</td>
+					<td><button onClick={() => shared.upgradeMasterKey(comp, mk)} style={theme.buttonStyle}>Upgrade</button></td>
+				</tr>
+			);
+		}
+
+		return (
+			<div>
+				<h1 style={theme.h1Style}>{_('Master keys that need upgrading')}</h1>
+				<p style={theme.textStyle}>{_('The following master keys use an out-dated encryption algorithm and it is recommended to upgrade them. The upgraded master key will still be able to decrypt and encrypt your data as usual.')}</p>
+				<table>
+					<tbody>
+						<tr>
+							<th style={theme.textStyle}>{_('ID')}</th>
+							<th style={theme.textStyle}>{_('Upgrade')}</th>
+						</tr>
+						{rows}
+					</tbody>
+				</table>
+			</div>
+		);
+	}
+
 	render() {
 		const theme = themeStyle(this.props.theme);
-		const masterKeys = this.state.masterKeys;
+		const masterKeys = this.props.masterKeys;
 		const containerPadding = 10;
 
 		const containerStyle = Object.assign({}, theme.containerStyle, {
@@ -138,6 +162,8 @@ class EncryptionConfigScreenComponent extends React.Component {
 				{this.props.encryptionEnabled ? _('Disable encryption') : _('Enable encryption')}
 			</button>
 		);
+
+		const needUpgradeSection = this.renderNeedUpgradeSection();
 
 		let masterKeySection = null;
 
@@ -218,6 +244,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 					</p>
 					{decryptedItemsInfo}
 					{toggleButton}
+					{needUpgradeSection}
 					{masterKeySection}
 					{nonExistingMasterKeySection}
 				</div>

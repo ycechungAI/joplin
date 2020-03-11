@@ -226,7 +226,8 @@ class EncryptionService {
 		return MasterKey.allWithoutEncryptionMethod(this.defaultMasterKeyEncryptionMethod_);
 	}
 
-	async upgradeMasterKey(newEncryptionMethod, model, decryptionPassword) {
+	async upgradeMasterKey(model, decryptionPassword) {
+		const newEncryptionMethod = this.defaultMasterKeyEncryptionMethod_;
 		const plainText = await this.decryptMasterKey_(model, decryptionPassword);
 		const newContent = await this.encryptMasterKeyContent_(newEncryptionMethod, plainText, decryptionPassword);
 		return { ...model, ...newContent };

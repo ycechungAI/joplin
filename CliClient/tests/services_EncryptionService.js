@@ -71,7 +71,7 @@ describe('services_EncryptionService', function() {
 		});
 		masterKey = await MasterKey.save(masterKey);
 
-		let upgradedMasterKey = await service.upgradeMasterKey(EncryptionService.METHOD_SJCL_4, masterKey, '123456');
+		let upgradedMasterKey = await service.upgradeMasterKey(masterKey, '123456');
 		upgradedMasterKey = await MasterKey.save(upgradedMasterKey);
 
 		// Check that master key has been upgraded (different ciphertext)
@@ -98,7 +98,7 @@ describe('services_EncryptionService', function() {
 			encryptionMethod: EncryptionService.METHOD_SJCL_2,
 		});
 
-		const hasThrown = await checkThrowAsync(async () => await service.upgradeMasterKey(EncryptionService.METHOD_SJCL_4, masterKey, '777'));
+		const hasThrown = await checkThrowAsync(async () => await service.upgradeMasterKey(masterKey, '777'));
 	}));
 
 	it('should require a checksum only for old master keys', asyncTest(async () => {
