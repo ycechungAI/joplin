@@ -222,6 +222,10 @@ class EncryptionService {
 			.join('');
 	}
 
+	async masterKeysThatNeedUpgrading() {
+		return MasterKey.allWithoutEncryptionMethod(this.defaultMasterKeyEncryptionMethod_);
+	}
+
 	async upgradeMasterKey(newEncryptionMethod, model, decryptionPassword) {
 		const plainText = await this.decryptMasterKey_(model, decryptionPassword);
 		const newContent = await this.encryptMasterKeyContent_(newEncryptionMethod, plainText, decryptionPassword);

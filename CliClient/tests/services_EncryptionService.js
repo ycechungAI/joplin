@@ -132,6 +132,23 @@ describe('services_EncryptionService', function() {
 		expect(hasThrown).toBe(true);
 	}));
 
+	it('should return the master keys that need an upgrade', asyncTest(async () => {
+		const masterKey1 = await MasterKey.save(await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL_2,
+		}));
+
+		const masterKey2 = await MasterKey.save(await service.generateMasterKey('123456', {
+			encryptionMethod: EncryptionService.METHOD_SJCL,
+		}));
+
+		const masterKey3 = await MasterKey.save(await service.generateMasterKey('123456'));
+
+		const needUpgrade = await service.masterKeysThatNeedUpgrading();
+
+		expect(needUpgrade.length).toBe(2);
+		expect(needUpgrade.map(k => k.id).sort()).toEqual([masterKey1.id, masterKey2.id].sort());
+	}));
+
 	it('should encrypt and decrypt with a master key', asyncTest(async () => {
 		let masterKey = await service.generateMasterKey('123456');
 		masterKey = await MasterKey.save(masterKey);

@@ -31,7 +31,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 		return shared.refreshStats(this);
 	}
 
-	UNSAFE_componentWillMount() {
+	componentDidMount() {
 		this.initState(this.props);
 	}
 
