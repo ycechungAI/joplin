@@ -5,6 +5,7 @@ const EncryptionService = require('lib/services/EncryptionService');
 const { themeStyle } = require('../theme.js');
 const { _ } = require('lib/locale.js');
 const { time } = require('lib/time-utils.js');
+const { shim } = require('lib/shim');
 const dialogs = require('./dialogs');
 const shared = require('lib/components/shared/encryption-config-shared.js');
 const { bridge } = require('electron').remote.require('./bridge');
@@ -74,6 +75,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 	}
 
 	renderNeedUpgradeSection() {
+		if (!shim.isElectron()) return null;
 		if (!this.state.needUpgradeMasterKeys.length) return null;
 
 		const theme = themeStyle(this.props.theme);
@@ -103,6 +105,33 @@ class EncryptionConfigScreenComponent extends React.Component {
 						{rows}
 					</tbody>
 				</table>
+			</div>
+		);
+	}
+
+	renderReencryptData() {
+		if (!shim.isElectron()) return null;
+
+		const theme = themeStyle(this.props.theme);
+		const buttonLabel = _('Reencrypt data');
+
+		const intro = this.props.shouldReencrypt ? _('The default encryption method has been changed to a more secure one and it is recommended that you apply it to your data.') : _('You may use the tool below to reencrypt your data, for example if you know that some of your notes are encrypted with an obsolete encryption method.');
+
+		let t = `${intro}\n\n${_('In order to do so, your entire data set will have to encrypted and synchronised, so it is best to run it overnight.\n\nTo start, please follow these instructions:\n\n1. Synchronise all your devices.\n2. Click "%s".\n3. Let it run to completion. While it runs, avoid changing any note on your other devices, to avoid conflicts.\n4. Once sync is done on this device, sync all your other devices and let it run to completion.\n\nImportant: you only need to run this ONCE on one device.', buttonLabel)}`;
+
+		t = t.replace(/\n\n/g, '</p><p>');
+		t = t.replace(/\n/g, '<br>');
+		t = `<p>${t}</p>`;
+
+		return (
+			<div>
+				<h1 style={theme.h1Style}>{_('Reencryption')}</h1>
+				<p style={theme.textStyle} dangerouslySetInnerHTML={{ __html: t }}></p>
+				<span style={{ marginRight: 10 }}>
+					<button onClick={() => shared.reencryptData()} style={theme.buttonStyle}>{buttonLabel}</button>
+				</span>
+
+				{ !this.props.shouldReencrypt ? null : <button onClick={() => shared.dontReencryptData()} style={theme.buttonStyle}>{_('I have already done it on another device')}</button> }
 			</div>
 		);
 	}
@@ -164,6 +193,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 		);
 
 		const needUpgradeSection = this.renderNeedUpgradeSection();
+		const reencryptDataSection = this.renderReencryptData();
 
 		let masterKeySection = null;
 
@@ -245,8 +275,10 @@ class EncryptionConfigScreenComponent extends React.Component {
 					{decryptedItemsInfo}
 					{toggleButton}
 					{needUpgradeSection}
+					{this.props.shouldReencrypt ? reencryptDataSection : null}
 					{masterKeySection}
 					{nonExistingMasterKeySection}
+					{!this.props.shouldReencrypt ? reencryptDataSection : null}
 				</div>
 			</div>
 		);
@@ -260,6 +292,7 @@ const mapStateToProps = state => {
 		passwords: state.settings['encryption.passwordCache'],
 		encryptionEnabled: state.settings['encryption.enabled'],
 		activeMasterKeyId: state.settings['encryption.activeMasterKeyId'],
+		shouldReencrypt: state.settings['encryption.shouldReencrypt'] >= Setting.SHOULD_REENCRYPT_YES,
 		notLoadedMasterKeys: state.notLoadedMasterKeys,
 	};
 };

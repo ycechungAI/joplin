@@ -28,6 +28,20 @@ shared.refreshStats = async function(comp) {
 	});
 };
 
+shared.reencryptData = async function() {
+	const ok = confirm(_('Please confirm that you would like to reencrypt your complete database.'));
+	if (!ok) return;
+
+	await BaseItem.forceSyncAll();
+	reg.waitForSyncFinishedThenSync();
+	Setting.setValue('encryption.shouldReencrypt', Setting.SHOULD_REENCRYPT_NO);
+	alert(_('Success! Your data is going to be reencrypted and synced again.'));
+};
+
+shared.dontReencryptData = function() {
+	Setting.setValue('encryption.shouldReencrypt', Setting.SHOULD_REENCRYPT_NO);
+};
+
 shared.upgradeMasterKey = async function(comp, masterKey) {
 	const passwordCheck = comp.state.passwordChecks[masterKey.id];
 	if (!passwordCheck) {
@@ -68,7 +82,7 @@ shared.componentDidMount = async function(comp) {
 			shared.refreshStatsIID_ = null;
 			return;
 		}
-		shared.refreshStats();
+		shared.refreshStats(comp);
 	}, 3000);
 };
 
