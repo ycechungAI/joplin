@@ -31,10 +31,6 @@ class EncryptionConfigScreenComponent extends BaseScreenComponent {
 		this.styles_ = {};
 	}
 
-	componentDidMount() {
-		this.isMounted_ = true;
-	}
-
 	componentWillUnmount() {
 		this.isMounted_ = false;
 	}
@@ -47,12 +43,13 @@ class EncryptionConfigScreenComponent extends BaseScreenComponent {
 		return shared.refreshStats(this);
 	}
 
-	UNSAFE_componentWillMount() {
-		this.initState(this.props);
+	componentDidMount() {
+		this.isMounted_ = true;
+		shared.componentDidMount(this);
 	}
 
-	UNSAFE_componentWillReceiveProps(nextProps) {
-		this.initState(nextProps);
+	componentDidUpdate(prevProps) {
+		shared.componentDidUpdate(this, prevProps);
 	}
 
 	async checkPasswords() {
