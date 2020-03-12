@@ -76,14 +76,16 @@ class EncryptionConfigScreenComponent extends React.Component {
 
 	renderNeedUpgradeSection() {
 		if (!shim.isElectron()) return null;
-		if (!this.state.needUpgradeMasterKeys.length) return null;
+
+		const needUpgradeMasterKeys = EncryptionService.instance().masterKeysThatNeedUpgrading(this.props.masterKeys);
+		if (!needUpgradeMasterKeys.length) return null;
 
 		const theme = themeStyle(this.props.theme);
 
 		const rows = [];
 		const comp = this;
 
-		for (const mk of this.state.needUpgradeMasterKeys) {
+		for (const mk of needUpgradeMasterKeys) {
 			rows.push(
 				<tr key={mk.id}>
 					<td style={theme.textStyle}>{mk.id}</td>

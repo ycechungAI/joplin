@@ -222,8 +222,8 @@ class EncryptionService {
 			.join('');
 	}
 
-	async masterKeysThatNeedUpgrading() {
-		return MasterKey.allWithoutEncryptionMethod(this.defaultMasterKeyEncryptionMethod_);
+	masterKeysThatNeedUpgrading(masterKeys) {
+		return MasterKey.allWithoutEncryptionMethod(masterKeys, this.defaultMasterKeyEncryptionMethod_);
 	}
 
 	async upgradeMasterKey(model, decryptionPassword) {

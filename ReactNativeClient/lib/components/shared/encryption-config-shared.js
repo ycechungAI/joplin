@@ -14,7 +14,6 @@ shared.constructor = function(comp) {
 			encrypted: null,
 			total: null,
 		},
-		needUpgradeMasterKeys: [],
 	};
 	comp.isMounted_ = false;
 
@@ -60,12 +59,6 @@ shared.upgradeMasterKey = async function(comp, masterKey) {
 	}
 };
 
-shared.checkNeedUpgradeMasterKeys_ = async function(comp) {
-	const needUpgradeMasterKeys = await EncryptionService.instance().masterKeysThatNeedUpgrading();
-
-	comp.setState({ needUpgradeMasterKeys: needUpgradeMasterKeys });
-};
-
 shared.componentDidMount = async function(comp) {
 	shared.componentDidUpdate(comp);
 
@@ -89,7 +82,6 @@ shared.componentDidMount = async function(comp) {
 shared.componentDidUpdate = async function(comp, prevProps = null) {
 	if (!prevProps || comp.props.masterKeys !== prevProps.masterKeys || comp.props.passwords !== prevProps.passwords) {
 		comp.checkPasswords();
-		shared.checkNeedUpgradeMasterKeys_(comp);
 	}
 };
 
