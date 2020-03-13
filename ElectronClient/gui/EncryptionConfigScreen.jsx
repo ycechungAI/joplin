@@ -133,7 +133,7 @@ class EncryptionConfigScreenComponent extends React.Component {
 					<button onClick={() => shared.reencryptData()} style={theme.buttonStyle}>{buttonLabel}</button>
 				</span>
 
-				{ !this.props.shouldReencrypt ? null : <button onClick={() => shared.dontReencryptData()} style={theme.buttonStyle}>{_('I have already done it on another device')}</button> }
+				{ !this.props.shouldReencrypt ? null : <button onClick={() => shared.dontReencryptData()} style={theme.buttonStyle}>{_('Ignore')}</button> }
 			</div>
 		);
 	}

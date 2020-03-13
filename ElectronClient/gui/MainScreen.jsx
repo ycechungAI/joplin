@@ -481,14 +481,14 @@ class MainScreenComponent extends React.Component {
 	renderNotification(theme, styles) {
 		if (!this.messageBoxVisible()) return null;
 
-		const onViewDisabledItemsClick = () => {
+		const onViewStatusScreen = () => {
 			this.props.dispatch({
 				type: 'NAV_GO',
 				routeName: 'Status',
 			});
 		};
 
-		const onViewEncryptionConfigClick = () => {
+		const onViewEncryptionConfigScreen = () => {
 			this.props.dispatch({
 				type: 'NAV_GO',
 				routeName: 'Config',
@@ -503,7 +503,16 @@ class MainScreenComponent extends React.Component {
 			msg = (
 				<span>
 					{_('Some items cannot be synchronised.')}{' '}
-					<a href="#" onClick={() => onViewDisabledItemsClick()}>
+					<a href="#" onClick={() => onViewStatusScreen()}>
+						{_('View them now')}
+					</a>
+				</span>
+			);
+		} else if (this.props.hasDisabledEncryptionItems) {
+			msg = (
+				<span>
+					{_('Some items cannot be decrypted.')}{' '}
+					<a href="#" onClick={() => onViewStatusScreen()}>
 						{_('View them now')}
 					</a>
 				</span>
@@ -512,7 +521,7 @@ class MainScreenComponent extends React.Component {
 			msg = (
 				<span>
 					{_('One or more master keys need a password.')}{' '}
-					<a href="#" onClick={() => onViewEncryptionConfigClick()}>
+					<a href="#" onClick={() => onViewEncryptionConfigScreen()}>
 						{_('Set the password')}
 					</a>
 				</span>
@@ -521,7 +530,7 @@ class MainScreenComponent extends React.Component {
 			msg = (
 				<span>
 					{_('One of your master keys use an obsolete encryption method.')}{' '}
-					<a href="#" onClick={() => onViewEncryptionConfigClick()}>
+					<a href="#" onClick={() => onViewEncryptionConfigScreen()}>
 						{_('View them now')}
 					</a>
 				</span>
@@ -530,7 +539,7 @@ class MainScreenComponent extends React.Component {
 			msg = (
 				<span>
 					{_('The default encryption method has been changed, you should reencrypt your data.')}{' '}
-					<a href="#" onClick={() => onViewEncryptionConfigClick()}>
+					<a href="#" onClick={() => onViewEncryptionConfigScreen()}>
 						{_('More info')}
 					</a>
 				</span>
@@ -545,7 +554,7 @@ class MainScreenComponent extends React.Component {
 	}
 
 	messageBoxVisible() {
-		return this.props.hasDisabledSyncItems || this.props.showMissingMasterKeyMessage || this.props.showNeedUpgradingMasterKeyMessage || this.props.showShouldReencryptMessage;
+		return this.props.hasDisabledSyncItems || this.props.showMissingMasterKeyMessage || this.props.showNeedUpgradingMasterKeyMessage || this.props.showShouldReencryptMessage || this.props.hasDisabledEncryptionItems;
 	}
 
 	render() {
@@ -686,6 +695,7 @@ const mapStateToProps = state => {
 		folders: state.folders,
 		notes: state.notes,
 		hasDisabledSyncItems: state.hasDisabledSyncItems,
+		hasDisabledEncryptionItems: state.hasDisabledEncryptionItems,
 		showMissingMasterKeyMessage: state.notLoadedMasterKeys.length && state.masterKeys.length,
 		showNeedUpgradingMasterKeyMessage: !!EncryptionService.instance().masterKeysThatNeedUpgrading(state.masterKeys).length,
 		showShouldReencryptMessage: state.settings['encryption.shouldReencrypt'] >= Setting.SHOULD_REENCRYPT_YES,
