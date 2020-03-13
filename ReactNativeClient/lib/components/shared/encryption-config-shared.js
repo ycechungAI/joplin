@@ -34,7 +34,7 @@ shared.reencryptData = async function() {
 	await BaseItem.forceSyncAll();
 	reg.waitForSyncFinishedThenSync();
 	Setting.setValue('encryption.shouldReencrypt', Setting.SHOULD_REENCRYPT_NO);
-	alert(_('Success! Your data is going to be reencrypted and synced again.'));
+	alert(_('Your data is going to be reencrypted and synced again.'));
 };
 
 shared.dontReencryptData = function() {
