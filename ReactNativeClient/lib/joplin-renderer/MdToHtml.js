@@ -265,7 +265,7 @@ class MdToHtml {
 		const pluginAssets = this.processPluginAssets(context.pluginAssets);
 		cssStrings = cssStrings.concat(pluginAssets.cssStrings);
 
-		const output = {
+		let output = {
 			pluginAssets: pluginAssets.files.map(f => {
 				return Object.assign({}, f, {
 					path: `pluginAssets/${f.name}`,
@@ -273,8 +273,18 @@ class MdToHtml {
 			}),
 		};
 
+		const handleExternalAssetsOnly = async (output) => {
+			if (options.externalAssetsOnly) {
+				for (const cssString of cssStrings) {
+					output.pluginAssets.push(await this.fsDriver().cacheCssToFile(cssString));
+				}
+			}
+			return output;
+		};
+
 		if (options.bodyOnly) {
 			output.html = renderedBody;
+			output = await handleExternalAssetsOnly(output);
 			return output;
 		}
 
@@ -289,10 +299,7 @@ class MdToHtml {
 		if (options.splitted) {
 			output.cssStrings = cssStrings;
 			output.html = `<div id="rendered-md">${renderedBody}</div>`;
-
-			if (options.externalAssetsOnly) {
-				output.pluginAssets.push(await this.fsDriver().cacheCssToFile(cssStrings));
-			}
+			output = await handleExternalAssetsOnly(output);
 		}
 
 		// Fow now, we keep only the last entry in the cache

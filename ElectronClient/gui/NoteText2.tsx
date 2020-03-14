@@ -348,6 +348,22 @@ function NoteText2(props:NoteTextProps) {
 		return result;
 	}, [props.theme]);
 
+	const joplinHtml = useCallback(async (type:string) => {
+		if (type === 'checkbox') {
+			const result = await markupToHtml(MarkupToHtml.MARKUP_LANGUAGE_MARKDOWN, '- [ ] xxxxxREMOVExxxxx', {
+				bodyOnly: true,
+				externalAssetsOnly: true,
+			});
+			const html = result.html
+				.replace(/xxxxxREMOVExxxxx/m, ' ')
+				.replace(/<ul.*?>/, '')
+				.replace(/<\/ul>/, '');
+			return { ...result, html: html };
+		}
+
+		throw new Error(`Invalid type:${type}`);
+	}, [markupToHtml]);
+
 	const handleProvisionalFlag = useCallback(() => {
 		if (props.isProvisional) {
 			props.dispatch({
@@ -503,6 +519,7 @@ function NoteText2(props:NoteTextProps) {
 		markupToHtml: markupToHtml,
 		attachResources: attachResources,
 		disabled: waitingToSaveNote,
+		joplinHtml: joplinHtml,
 	};
 
 	let editor = null;

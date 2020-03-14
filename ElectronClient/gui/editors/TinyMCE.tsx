@@ -15,6 +15,7 @@ interface TinyMCEProps {
 	defaultEditorState: DefaultEditorState,
 	markupToHtml: Function,
 	attachResources: Function,
+	joplinHtml: Function,
 	disabled: boolean,
 }
 
@@ -106,6 +107,9 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	const markupToHtml = useRef(null);
 	markupToHtml.current = props.markupToHtml;
 
+	const joplinHtml = useRef(null);
+	joplinHtml.current = props.joplinHtml;
+
 	const rootIdRef = useRef<string>(`tinymce-${Date.now()}${Math.round(Math.random() * 10000)}`);
 
 	const dispatchDidUpdate = (editor:any) => {
@@ -167,20 +171,59 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	// -----------------------------------------------------------------------------------------
 
 	useEffect(() => {
-		if (document.getElementById('tinyMceScript')) {
-			setScriptLoaded(true);
-			return () => {};
-		}
+		const scriptsToLoad = [
+			{
+				src: 'node_modules/tinymce/tinymce.min.js',
+				id: 'tinyMceScript',
+				loaded: false,
+			},
+			// {
+			// 	src: 'vendor/prism/prism.js',
+			// 	id: 'tinyMcePrismScript',
+			// 	loaded: false,
+			// },
+			// {
+			// 	src: 'vendor/prism/prism.css',
+			// 	id: 'tinyMcePrismStyle',
+			// 	loaded: false,
+			// },
+		];
 
 		let cancelled = false;
-		const script = document.createElement('script');
-		script.src = 'node_modules/tinymce/tinymce.min.js';
-		script.id = 'tinyMceScript';
-		script.onload = () => {
-			if (cancelled) return;
-			setScriptLoaded(true);
+
+		const checkAllLoaded = () => {
+			const allLoaded = !scriptsToLoad.find(s => !s.loaded);
+			if (allLoaded) setScriptLoaded(true);
 		};
-		document.getElementsByTagName('head')[0].appendChild(script);
+
+		for (const s of scriptsToLoad) {
+			if (document.getElementById(s.id)) {
+				s.loaded = true;
+				continue;
+			}
+
+			let element = null;
+			if (s.src.indexOf('.css') >= 0) {
+				element = document.createElement('link');
+				element.rel = 'stylesheet';
+				element.href = s.src;
+			} else {
+				element = document.createElement('script');
+				element.src = s.src;
+			}
+
+			element.id = s.id;
+			element.onload = () => {
+				if (cancelled) return;
+				s.loaded = true;
+				checkAllLoaded();
+			};
+
+			document.getElementsByTagName('head')[0].appendChild(element);
+		}
+
+		checkAllLoaded();
+
 		return () => {
 			cancelled = true;
 		};
@@ -210,12 +253,12 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				width: '100%',
 				height: '100%',
 				resize: false,
-				plugins: 'noneditable link lists hr searchreplace',
+				plugins: 'noneditable link lists hr searchreplace codesample',
 				noneditable_noneditable_class: 'joplin-editable', // Can be a regex too
 				valid_elements: '*[*]', // We already filter in sanitize_html
 				menubar: false,
 				branding: false,
-				toolbar: 'bold italic | link codeformat customAttach | numlist bullist h1 h2 h3 hr blockquote',
+				toolbar: 'bold italic | link codeformat codesample joplinAttach | numlist bullist joplinCheckbox | h1 h2 h3 hr blockquote',
 				setup: (editor:any) => {
 
 					function openEditDialog(editable:any) {
@@ -266,7 +309,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 						});
 					}
 
-					editor.ui.registry.addButton('customAttach', {
+					editor.ui.registry.addButton('joplinAttach', {
 						tooltip: 'Attach...',
 						icon: 'upload',
 						onAction: async function() {
@@ -282,6 +325,17 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 							editor.insertContent(html.join('\n'));
 							editor.fire('joplinChange');
 							dispatchDidUpdate(editor);
+						},
+					});
+
+					editor.ui.registry.addToggleButton('joplinCheckbox', {
+						tooltip: 'Checkbox',
+						icon: 'checklist',
+						onAction: async function() {
+							// editor.execCommand('InsertUnorderedList');
+							// const result = await joplinHtml.current('checkbox');
+							// editor.selection.getNode().outerHTML = result.html;
+							// await loadPluginAssets(editor, result.pluginAssets);
 						},
 					});
 
@@ -310,6 +364,37 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	// Set the initial content and load the plugin CSS and JS files
 	// -----------------------------------------------------------------------------------------
 
+	const loadPluginAssets = (editor:any, pluginAssets:any[]) => {
+		const cssFiles = pluginAssets
+			.filter((a:any) => a.mime === 'text/css' && !loadedAssetFiles_.includes(a.path))
+			.map((a:any) => a.path);
+
+		const jsFiles = pluginAssets
+			.filter((a:any) => a.mime === 'application/javascript' && !loadedAssetFiles_.includes(a.path))
+			.map((a:any) => a.path);
+
+		for (const cssFile of cssFiles) loadedAssetFiles_.push(cssFile);
+		for (const jsFile of jsFiles) loadedAssetFiles_.push(jsFile);
+
+		console.info('loadPluginAssets: files to load', cssFiles, jsFiles);
+
+		if (cssFiles.length) editor.dom.loadCSS(cssFiles.join(','));
+
+		if (jsFiles.length) {
+			const editorElementId = editor.dom.uniqueId();
+
+			for (const jsFile of jsFiles) {
+				const script = editor.dom.create('script', {
+					id: editorElementId,
+					type: 'text/javascript',
+					src: jsFile,
+				});
+
+				editor.getDoc().getElementsByTagName('head')[0].appendChild(script);
+			}
+		}
+	};
+
 	useEffect(() => {
 		if (!editor) return () => {};
 
@@ -321,32 +406,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 
 			editor.setContent(result.html);
 
-			const cssFiles = result.pluginAssets
-				.filter((a:any) => a.mime === 'text/css' && !loadedAssetFiles_.includes(a.path))
-				.map((a:any) => a.path);
-
-			const jsFiles = result.pluginAssets
-				.filter((a:any) => a.mime === 'application/javascript' && !loadedAssetFiles_.includes(a.path))
-				.map((a:any) => a.path);
-
-			for (const cssFile of cssFiles) loadedAssetFiles_.push(cssFile);
-			for (const jsFile of jsFiles) loadedAssetFiles_.push(jsFile);
-
-			if (cssFiles.length) editor.dom.loadCSS(cssFiles.join(','));
-
-			if (jsFiles.length) {
-				const editorElementId = editor.dom.uniqueId();
-
-				for (const jsFile of jsFiles) {
-					const script = editor.dom.create('script', {
-						id: editorElementId,
-						type: 'text/javascript',
-						src: jsFile,
-					});
-
-					editor.getDoc().getElementsByTagName('head')[0].appendChild(script);
-				}
-			}
+			await loadPluginAssets(editor, result.pluginAssets);
 
 			editor.getDoc().addEventListener('click', onEditorContentClick);
 
