@@ -7,8 +7,8 @@ module.exports = function(grunt) {
 	const packageData = grunt.file.readJSON('package.json');
 	const BUILD_VERSION = `${packageData.version}-${process.env.BUILD_NUMBER ? process.env.BUILD_NUMBER : '0'}`;
 	const libPluginPath = 'lib/main/ts/Main.js';
-	const scratchPluginPath = 'scratch/compiled/plugin.js';
-	const scratchPluginMinPath = 'scratch/compiled/plugin.min.js';
+	const scratchPluginPath = 'scratch/compiled/joplinLists.js';
+	const scratchPluginMinPath = 'scratch/compiled/joplinLists.min.js';
 	const tsDemoSourceFile = path.resolve('src/demo/ts/Demo.ts');
 	const jsDemoDestFile = path.resolve('scratch/compiled/demo.js');
 
@@ -101,13 +101,13 @@ module.exports = function(grunt) {
 				},
 				// scratchPluginMinPath is used twice on purpose, all outputs will be minified for premium plugins
 				files: {
-					'dist/plugin.js': [
+					'dist/joplinLists.js': [
 						'src/text/license-header.js',
 						scratchPluginPath,
 					],
-					'dist/plugin.min.js': [
+					'dist/joplinLists.min.js': [
 						'src/text/license-header.js',
-						scratchPluginPath,
+						scratchPluginMinPath,
 					],
 				},
 			},
@@ -116,13 +116,17 @@ module.exports = function(grunt) {
 		copy: {
 			css: {
 				files: [
+					// {
+					// 	cwd: 'src/text',
+					// 	src: ['license.txt'],
+					// 	dest: 'dist',
+					// 	expand: true,
+					// },
+					// { src: ['changelog.txt'], dest: 'dist', expand: true },
 					{
-						cwd: 'src/text',
-						src: ['license.txt'],
-						dest: 'dist',
-						expand: true,
+						src: ['dist/joplinLists.js'],
+						dest: '../../../ElectronClient/gui/editors/TinyMCE/plugins/lists.js',
 					},
-					{ src: ['changelog.txt'], dest: 'dist', expand: true },
 				],
 			},
 		},
@@ -175,18 +179,18 @@ module.exports = function(grunt) {
 	require('load-grunt-tasks')(grunt);
 	grunt.loadNpmTasks('@ephox/swag');
 
-	grunt.registerTask('version', 'Creates a version file', function() {
-		grunt.file.write('dist/version.txt', BUILD_VERSION);
-	});
+	// grunt.registerTask('version', 'Creates a version file', function() {
+	// 	grunt.file.write('dist/version.txt', BUILD_VERSION);
+	// });
 
 	grunt.registerTask('default', [
 		'clean',
 		// 'tslint',
 		'shell',
 		'rollup',
-		// 'uglify',
+		'uglify',
 		'concat',
 		'copy',
-		'version',
+		// 'version',
 	]);
 };

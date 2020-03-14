@@ -11,12 +11,12 @@ import * as Commands from './api/Commands';
 import * as Keyboard from './core/Keyboard';
 import * as Buttons from './ui/Buttons';
 
-export default function() {
-	PluginManager.add('joplinLists', function(editor) {
-		Keyboard.setup(editor);
-		Buttons.register(editor);
-		Commands.register(editor);
+export default function () {
+  PluginManager.add('joplinLists', function (editor) {
+    Keyboard.setup(editor);
+    Buttons.register(editor);
+    Commands.register(editor);
 
-		return Api.get(editor);
-	});
+    return Api.get(editor);
+  });
 }

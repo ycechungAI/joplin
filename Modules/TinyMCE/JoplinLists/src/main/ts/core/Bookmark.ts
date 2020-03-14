@@ -21,106 +21,106 @@ const DOM = DOMUtils.DOM;
  * @param  {DOMRange} rng DOM Range to get bookmark on.
  * @return {Object} Bookmark object.
  */
-const createBookmark = function(rng) {
-	const bookmark = {};
+const createBookmark = function (rng) {
+  const bookmark = {};
 
-	const setupEndPoint = function(start?) {
-		let offsetNode, container, offset;
+  const setupEndPoint = function (start?) {
+    let offsetNode, container, offset;
 
-		container = rng[start ? 'startContainer' : 'endContainer'];
-		offset = rng[start ? 'startOffset' : 'endOffset'];
+    container = rng[start ? 'startContainer' : 'endContainer'];
+    offset = rng[start ? 'startOffset' : 'endOffset'];
 
-		if (container.nodeType === 1) {
-			offsetNode = DOM.create('span', { 'data-mce-type': 'bookmark' });
+    if (container.nodeType === 1) {
+      offsetNode = DOM.create('span', { 'data-mce-type': 'bookmark' });
 
-			if (container.hasChildNodes()) {
-				offset = Math.min(offset, container.childNodes.length - 1);
+      if (container.hasChildNodes()) {
+        offset = Math.min(offset, container.childNodes.length - 1);
 
-				if (start) {
-					container.insertBefore(offsetNode, container.childNodes[offset]);
-				} else {
-					DOM.insertAfter(offsetNode, container.childNodes[offset]);
-				}
-			} else {
-				container.appendChild(offsetNode);
-			}
+        if (start) {
+          container.insertBefore(offsetNode, container.childNodes[offset]);
+        } else {
+          DOM.insertAfter(offsetNode, container.childNodes[offset]);
+        }
+      } else {
+        container.appendChild(offsetNode);
+      }
 
-			container = offsetNode;
-			offset = 0;
-		}
+      container = offsetNode;
+      offset = 0;
+    }
 
-		bookmark[start ? 'startContainer' : 'endContainer'] = container;
-		bookmark[start ? 'startOffset' : 'endOffset'] = offset;
-	};
+    bookmark[start ? 'startContainer' : 'endContainer'] = container;
+    bookmark[start ? 'startOffset' : 'endOffset'] = offset;
+  };
 
-	setupEndPoint(true);
+  setupEndPoint(true);
 
-	if (!rng.collapsed) {
-		setupEndPoint();
-	}
+  if (!rng.collapsed) {
+    setupEndPoint();
+  }
 
-	return bookmark;
+  return bookmark;
 };
 
-const resolveBookmark = function(bookmark) {
-	function restoreEndPoint(start?) {
-		let container, offset, node;
+const resolveBookmark = function (bookmark) {
+  function restoreEndPoint(start?) {
+    let container, offset, node;
 
-		const nodeIndex = function(container) {
-			let node = container.parentNode.firstChild, idx = 0;
+    const nodeIndex = function (container) {
+      let node = container.parentNode.firstChild, idx = 0;
 
-			while (node) {
-				if (node === container) {
-					return idx;
-				}
+      while (node) {
+        if (node === container) {
+          return idx;
+        }
 
-				// Skip data-mce-type=bookmark nodes
-				if (node.nodeType !== 1 || node.getAttribute('data-mce-type') !== 'bookmark') {
-					idx++;
-				}
+        // Skip data-mce-type=bookmark nodes
+        if (node.nodeType !== 1 || node.getAttribute('data-mce-type') !== 'bookmark') {
+          idx++;
+        }
 
-				node = node.nextSibling;
-			}
+        node = node.nextSibling;
+      }
 
-			return -1;
-		};
+      return -1;
+    };
 
-		container = node = bookmark[start ? 'startContainer' : 'endContainer'];
-		offset = bookmark[start ? 'startOffset' : 'endOffset'];
+    container = node = bookmark[start ? 'startContainer' : 'endContainer'];
+    offset = bookmark[start ? 'startOffset' : 'endOffset'];
 
-		if (!container) {
-			return;
-		}
+    if (!container) {
+      return;
+    }
 
-		if (container.nodeType === 1) {
-			offset = nodeIndex(container);
-			container = container.parentNode;
-			DOM.remove(node);
+    if (container.nodeType === 1) {
+      offset = nodeIndex(container);
+      container = container.parentNode;
+      DOM.remove(node);
 
-			if (!container.hasChildNodes() && DOM.isBlock(container)) {
-				container.appendChild(DOM.create('br'));
-			}
-		}
+      if (!container.hasChildNodes() && DOM.isBlock(container)) {
+        container.appendChild(DOM.create('br'));
+      }
+    }
 
-		bookmark[start ? 'startContainer' : 'endContainer'] = container;
-		bookmark[start ? 'startOffset' : 'endOffset'] = offset;
-	}
+    bookmark[start ? 'startContainer' : 'endContainer'] = container;
+    bookmark[start ? 'startOffset' : 'endOffset'] = offset;
+  }
 
-	restoreEndPoint(true);
-	restoreEndPoint();
+  restoreEndPoint(true);
+  restoreEndPoint();
 
-	const rng = DOM.createRng();
+  const rng = DOM.createRng();
 
-	rng.setStart(bookmark.startContainer, bookmark.startOffset);
+  rng.setStart(bookmark.startContainer, bookmark.startOffset);
 
-	if (bookmark.endContainer) {
-		rng.setEnd(bookmark.endContainer, bookmark.endOffset);
-	}
+  if (bookmark.endContainer) {
+    rng.setEnd(bookmark.endContainer, bookmark.endOffset);
+  }
 
-	return Range.normalizeRange(rng);
+  return Range.normalizeRange(rng);
 };
 
 export {
-	createBookmark,
-	resolveBookmark,
+  createBookmark,
+  resolveBookmark
 };

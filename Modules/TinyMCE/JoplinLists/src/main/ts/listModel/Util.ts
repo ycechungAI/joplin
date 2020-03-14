@@ -13,19 +13,19 @@ export const enum ListType {
 }
 
 const isList = (el: Element) => {
-	return Compare.is(el, 'OL,UL');
+  return Compare.is(el, 'OL,UL');
 };
 
 const hasFirstChildList = (el: Element) => {
-	return Traverse.firstChild(el).map(isList).getOr(false);
+  return Traverse.firstChild(el).map(isList).getOr(false);
 };
 
 const hasLastChildList = (el: Element) => {
-	return Traverse.lastChild(el).map(isList).getOr(false);
+  return Traverse.lastChild(el).map(isList).getOr(false);
 };
 
 export {
-	isList,
-	hasFirstChildList,
-	hasLastChildList,
+  isList,
+  hasFirstChildList,
+  hasLastChildList
 };

@@ -23,49 +23,49 @@ export interface EntrySet {
 }
 
 const parseItem: Parser = (depth: number, itemSelection: Option<ItemSelection>, selectionState: Cell<boolean>, item: Element): Entry[] => {
-	return Traverse.firstChild(item).filter(isList).fold(() => {
+  return Traverse.firstChild(item).filter(isList).fold(() => {
 
-		// Update selectionState (start)
-		itemSelection.each((selection) => {
-			if (Compare.eq(selection.start, item)) {
-				selectionState.set(true);
-			}
-		});
+    // Update selectionState (start)
+    itemSelection.each((selection) => {
+      if (Compare.eq(selection.start, item)) {
+        selectionState.set(true);
+      }
+    });
 
-		const currentItemEntry = createEntry(item, depth, selectionState.get());
+    const currentItemEntry = createEntry(item, depth, selectionState.get());
 
-		// Update selectionState (end)
-		itemSelection.each((selection) => {
-			if (Compare.eq(selection.end, item)) {
-				selectionState.set(false);
-			}
-		});
+    // Update selectionState (end)
+    itemSelection.each((selection) => {
+      if (Compare.eq(selection.end, item)) {
+        selectionState.set(false);
+      }
+    });
 
-		const childListEntries: Entry[] = Traverse.lastChild(item)
-			.filter(isList)
-			.map((list) => parseList(depth, itemSelection, selectionState, list))
-			.getOr([]);
+    const childListEntries: Entry[] = Traverse.lastChild(item)
+      .filter(isList)
+      .map((list) => parseList(depth, itemSelection, selectionState, list))
+      .getOr([]);
 
-		return currentItemEntry.toArray().concat(childListEntries);
-	}, (list) => parseList(depth, itemSelection, selectionState, list));
+    return currentItemEntry.toArray().concat(childListEntries);
+  }, (list) => parseList(depth, itemSelection, selectionState, list));
 };
 
 const parseList: Parser = (depth: number, itemSelection: Option<ItemSelection>, selectionState: Cell<boolean>, list: Element): Entry[] => {
-	return Arr.bind(Traverse.children(list), (element) => {
-		const parser = isList(element) ? parseList : parseItem;
-		const newDepth = depth + 1;
-		return parser(newDepth, itemSelection, selectionState, element);
-	});
+  return Arr.bind(Traverse.children(list), (element) => {
+    const parser = isList(element) ? parseList : parseItem;
+    const newDepth = depth + 1;
+    return parser(newDepth, itemSelection, selectionState, element);
+  });
 };
 
 const parseLists = (lists: Element[], itemSelection: Option<ItemSelection>): EntrySet[] => {
-	const selectionState = Cell(false);
-	const initialDepth = 0;
+  const selectionState = Cell(false);
+  const initialDepth = 0;
 
-	return Arr.map(lists, (list) => ({
-		sourceList: list,
-		entries: parseList(initialDepth, itemSelection, selectionState, list),
-	}));
+  return Arr.map(lists, (list) => ({
+    sourceList: list,
+    entries: parseList(initialDepth, itemSelection, selectionState, list)
+  }));
 };
 
 export { parseLists };

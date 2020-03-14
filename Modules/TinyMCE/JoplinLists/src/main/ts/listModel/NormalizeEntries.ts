@@ -9,32 +9,32 @@ import { Arr, Option } from '@ephox/katamari';
 import { Entry } from './Entry';
 
 const cloneListProperties = (target: Entry, source: Entry): void => {
-	target.listType = source.listType;
-	target.listAttributes = { ...source.listAttributes };
+  target.listType = source.listType;
+  target.listAttributes = { ...source.listAttributes };
 };
 
 // Closest entry above in the same list
 const previousSiblingEntry = (entries: Entry[], start: number): Option<Entry> => {
-	const depth = entries[start].depth;
-	for (let i = start - 1; i >= 0; i--) {
-		if (entries[i].depth === depth) {
-			return Option.some(entries[i]);
-		}
-		if (entries[i].depth < depth) {
-			break;
-		}
-	}
-	return Option.none();
+  const depth = entries[start].depth;
+  for (let i = start - 1; i >= 0; i--) {
+    if (entries[i].depth === depth) {
+      return Option.some(entries[i]);
+    }
+    if (entries[i].depth < depth) {
+      break;
+    }
+  }
+  return Option.none();
 };
 
 const normalizeEntries = (entries: Entry[]): void => {
-	Arr.each(entries, (entry, i) => {
-		previousSiblingEntry(entries, i).each((matchingEntry) => {
-			cloneListProperties(entry, matchingEntry);
-		});
-	});
+  Arr.each(entries, (entry, i) => {
+    previousSiblingEntry(entries, i).each((matchingEntry) => {
+      cloneListProperties(entry, matchingEntry);
+    });
+  });
 };
 
 export {
-	normalizeEntries,
+  normalizeEntries
 };

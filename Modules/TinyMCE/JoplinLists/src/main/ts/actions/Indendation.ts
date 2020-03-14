@@ -6,7 +6,7 @@
  */
 
 import { Arr } from '@ephox/katamari';
-import { Element } from '@ephox/sugar';
+import { Element} from '@ephox/sugar';
 import Editor from 'tinymce/core/api/Editor';
 import { Indentation } from '../listModel/Indentation';
 import { listIndentation } from '../listModel/ListsIndendation';
@@ -15,39 +15,39 @@ import * as Range from '../core/Range';
 import * as Selection from '../core/Selection';
 
 const selectionIndentation = (editor: Editor, indentation: Indentation): boolean => {
-	const lists = Arr.map(Selection.getSelectedListRoots(editor), Element.fromDom);
-	const dlItems = Arr.map(Selection.getSelectedDlItems(editor), Element.fromDom);
-	let isHandled = false;
+  const lists = Arr.map(Selection.getSelectedListRoots(editor), Element.fromDom);
+  const dlItems = Arr.map(Selection.getSelectedDlItems(editor), Element.fromDom);
+  let isHandled = false;
 
-	if (lists.length || dlItems.length) {
-		const bookmark = editor.selection.getBookmark();
+  if (lists.length || dlItems.length) {
+    const bookmark = editor.selection.getBookmark();
 
-		listIndentation(editor, lists, indentation);
-		dlIndentation(editor, indentation, dlItems);
+    listIndentation(editor, lists, indentation);
+    dlIndentation(editor, indentation, dlItems);
 
-		editor.selection.moveToBookmark(bookmark);
-		editor.selection.setRng(Range.normalizeRange(editor.selection.getRng()));
-		editor.nodeChanged();
-		isHandled = true;
-	}
+    editor.selection.moveToBookmark(bookmark);
+    editor.selection.setRng(Range.normalizeRange(editor.selection.getRng()));
+    editor.nodeChanged();
+    isHandled = true;
+  }
 
-	return isHandled;
+  return isHandled;
 };
 
 const indentListSelection = (editor: Editor): boolean => {
-	return selectionIndentation(editor, Indentation.Indent);
+  return selectionIndentation(editor, Indentation.Indent);
 };
 
 const outdentListSelection = (editor: Editor): boolean => {
-	return selectionIndentation(editor, Indentation.Outdent);
+  return selectionIndentation(editor, Indentation.Outdent);
 };
 
 const flattenListSelection = (editor: Editor): boolean => {
-	return selectionIndentation(editor, Indentation.Flatten);
+  return selectionIndentation(editor, Indentation.Flatten);
 };
 
 export {
-	indentListSelection,
-	outdentListSelection,
-	flattenListSelection,
+  indentListSelection,
+  outdentListSelection,
+  flattenListSelection
 };

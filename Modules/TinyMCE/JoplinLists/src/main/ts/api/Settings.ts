@@ -7,27 +7,27 @@
 
 import Editor from 'tinymce/core/api/Editor';
 
-const shouldIndentOnTab = function(editor: Editor) {
-	return editor.getParam('lists_indent_on_tab', true);
+const shouldIndentOnTab = function (editor: Editor) {
+  return editor.getParam('lists_indent_on_tab', true);
 };
 
 const getForcedRootBlock = (editor: Editor): string => {
-	const block = editor.getParam('forced_root_block', 'p');
-	if (block === false) {
-		return '';
-	} else if (block === true) {
-		return 'p';
-	} else {
-		return block;
-	}
+  const block = editor.getParam('forced_root_block', 'p');
+  if (block === false) {
+    return '';
+  } else if (block === true) {
+    return 'p';
+  } else {
+    return block;
+  }
 };
 
 const getForcedRootBlockAttrs = (editor: Editor): Record<string, string> => {
-	return editor.getParam('forced_root_block_attrs', {});
+  return editor.getParam('forced_root_block_attrs', {});
 };
 
 export {
-	shouldIndentOnTab,
-	getForcedRootBlock,
-	getForcedRootBlockAttrs,
+  shouldIndentOnTab,
+  getForcedRootBlock,
+  getForcedRootBlockAttrs
 };

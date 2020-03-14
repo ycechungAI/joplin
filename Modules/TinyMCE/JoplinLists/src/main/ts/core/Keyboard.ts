@@ -10,29 +10,29 @@ import * as Settings from '../api/Settings';
 import * as Delete from './Delete';
 import { outdentListSelection, indentListSelection } from '../actions/Indendation';
 
-const setupTabKey = function(editor) {
-	editor.on('keydown', function(e) {
-		// Check for tab but not ctrl/cmd+tab since it switches browser tabs
-		if (e.keyCode !== VK.TAB || VK.metaKeyPressed(e)) {
-			return;
-		}
+const setupTabKey = function (editor) {
+  editor.on('keydown', function (e) {
+    // Check for tab but not ctrl/cmd+tab since it switches browser tabs
+    if (e.keyCode !== VK.TAB || VK.metaKeyPressed(e)) {
+      return;
+    }
 
-		editor.undoManager.transact(() => {
-			if (e.shiftKey ? outdentListSelection(editor) : indentListSelection(editor)) {
-				e.preventDefault();
-			}
-		});
-	});
+    editor.undoManager.transact(() => {
+      if (e.shiftKey ? outdentListSelection(editor) : indentListSelection(editor)) {
+        e.preventDefault();
+      }
+    });
+  });
 };
 
-const setup = function(editor) {
-	if (Settings.shouldIndentOnTab(editor)) {
-		setupTabKey(editor);
-	}
+const setup = function (editor) {
+  if (Settings.shouldIndentOnTab(editor)) {
+    setupTabKey(editor);
+  }
 
-	Delete.setup(editor);
+  Delete.setup(editor);
 };
 
 export {
-	setup,
+  setup
 };
