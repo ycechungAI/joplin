@@ -6,7 +6,7 @@ const swag = require('@ephox/swag');
 module.exports = function(grunt) {
 	const packageData = grunt.file.readJSON('package.json');
 	const BUILD_VERSION = `${packageData.version}-${process.env.BUILD_NUMBER ? process.env.BUILD_NUMBER : '0'}`;
-	const libPluginPath = 'lib/main/ts/Main.js';
+	const libPluginPath = 'lib/Main.js';
 	const scratchPluginPath = 'scratch/compiled/joplinLists.js';
 	const scratchPluginMinPath = 'scratch/compiled/joplinLists.min.js';
 	const tsDemoSourceFile = path.resolve('src/demo/ts/Demo.ts');
@@ -44,8 +44,8 @@ module.exports = function(grunt) {
 					'tinymce/core/api/util/VK',
 					'tinymce/core/api/dom/DomQuery',
 				],
-    	globals: {
-        	'tinymce/core/api/PluginManager': 'tinymce.PluginManager',
+    			globals: {
+        			'tinymce/core/api/PluginManager': 'tinymce.PluginManager',
 					'tinymce/core/api/util/Tools': 'tinymce.util.Tools',
 					'tinymce/core/api/dom/BookmarkManager': 'tinymce.dom.BookmarkManager',
 					'tinymce/core/api/Editor': 'tinymce.Editor',
