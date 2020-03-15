@@ -170,59 +170,122 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	// module would not load these extra files.
 	// -----------------------------------------------------------------------------------------
 
-	useEffect(() => {
-		const scriptsToLoad = [
-			{
-				src: 'node_modules/tinymce/tinymce.min.js',
-				id: 'tinyMceScript',
-				loaded: false,
-			},
-			// {
-			// 	src: 'vendor/prism/prism.js',
-			// 	id: 'tinyMcePrismScript',
-			// 	loaded: false,
-			// },
-			// {
-			// 	src: 'vendor/prism/prism.css',
-			// 	id: 'tinyMcePrismStyle',
-			// 	loaded: false,
-			// },
-		];
-
-		let cancelled = false;
-
-		const checkAllLoaded = () => {
-			const allLoaded = !scriptsToLoad.find(s => !s.loaded);
-			if (allLoaded) setScriptLoaded(true);
-		};
-
-		for (const s of scriptsToLoad) {
-			if (document.getElementById(s.id)) {
-				s.loaded = true;
-				continue;
-			}
-
-			let element = null;
-			if (s.src.indexOf('.css') >= 0) {
+	const loadScript = async (script:any) => {
+		return new Promise((resolve) => {
+			let element:any = document.createElement('script');
+			if (script.src.indexOf('.css') >= 0) {
 				element = document.createElement('link');
 				element.rel = 'stylesheet';
-				element.href = s.src;
+				element.href = script.src;
 			} else {
-				element = document.createElement('script');
-				element.src = s.src;
+				element.src = script.src;
+
+				if (script.attrs) {
+					for (const attr in script.attrs) {
+						element[attr] = script.attrs[attr];
+					}
+				}
 			}
 
-			element.id = s.id;
+			element.id = script.id;
+
 			element.onload = () => {
-				if (cancelled) return;
-				s.loaded = true;
-				checkAllLoaded();
+				resolve();
 			};
 
 			document.getElementsByTagName('head')[0].appendChild(element);
+		});
+	};
+
+	useEffect(() => {
+		let cancelled = false;
+
+		async function loadScripts() {
+			const scriptsToLoad:any[] = [
+				{
+					src: 'node_modules/tinymce/tinymce.min.js',
+					id: 'tinyMceScript',
+					loaded: false,
+				},
+				// {
+				// 	src: 'gui/editors/TinyMCE/require.js',
+				// 	id: 'tinyMceRequireJsScript',
+				// 	attrs: {
+				// 		"data-main": "scripts/main",
+				// 	},
+				// 	loaded: false,
+				// },
+				{
+					src: 'gui/editors/TinyMCE/plugins/lists/index.js',
+					id: 'tinyMceListsPluginScript',
+					loaded: false,
+				},
+
+				// {
+				// 	src: 'vendor/prism/prism.js',
+				// 	id: 'tinyMcePrismScript',
+				// 	loaded: false,
+				// },
+				// {
+				// 	src: 'vendor/prism/prism.css',
+				// 	id: 'tinyMcePrismStyle',
+				// 	loaded: false,
+				// },
+			];
+
+			// const checkAllLoaded = () => {
+			// 	const allLoaded = !scriptsToLoad.find(s => !s.loaded);
+			// 	if (allLoaded) setScriptLoaded(true);
+			// };
+
+			for (const s of scriptsToLoad) {
+				if (document.getElementById(s.id)) {
+					s.loaded = true;
+					continue;
+				}
+
+				console.info('Loading script', s.src);
+
+				await loadScript(s);
+				if (cancelled) return;
+
+				s.loaded = true;
+
+				// const element:any = document.createElement('script');
+				// element.src = script.src;
+
+				// let element :any= null;
+				// if (s.src.indexOf('.css') >= 0) {
+				// 	element = document.createElement('link');
+				// 	element.rel = 'stylesheet';
+				// 	element.href = s.src;
+				// } else {
+				// 	element = document.createElement('script');
+				// 	element.src = s.src;
+
+				// 	if (s.attrs) {
+				// 		for (const attr in s.attrs) {
+				// 			element[attr] = s.attrs[attr];
+				// 		}
+				// 	}
+				// }
+
+				// element.id = s.id;
+				// element.onload = () => {
+				// 	if (cancelled) return;
+				// 	s.loaded = true;
+				// 	console.info('Script loaded:', s.src);
+				// 	checkAllLoaded();
+				// };
+
+				// document.getElementsByTagName('head')[0].appendChild(element);
+			}
+
+			setScriptLoaded(true);
+			// checkAllLoaded();
 		}
 
-		checkAllLoaded();
+		loadScripts();
 
 		return () => {
 			cancelled = true;
@@ -253,7 +316,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				width: '100%',
 				height: '100%',
 				resize: false,
-				plugins: 'noneditable link lists hr searchreplace codesample',
+				plugins: 'noneditable link joplinLists hr searchreplace codesample',
 				noneditable_noneditable_class: 'joplin-editable', // Can be a regex too
 				valid_elements: '*[*]', // We already filter in sanitize_html
 				menubar: false,

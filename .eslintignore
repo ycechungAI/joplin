@@ -53,6 +53,7 @@ ReactNativeClient/lib/joplin-renderer/assets/
 ReactNativeClient/lib/rnInjectedJs/
 Clipper/popup/config/webpack.config.js
 Clipper/popup/scripts/build.js
+Modules/TinyMCE/JoplinLists/
 
 # AUTO-GENERATED - EXCLUDED TYPESCRIPT BUILD
 ElectronClient/gui/editors/PlainEditor.js
