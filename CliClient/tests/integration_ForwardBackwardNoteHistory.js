@@ -7,12 +7,12 @@ const { time } = require('lib/time-utils.js');
 let testApp = null;
 
 const goBackWard = (state) => {
-	let lastItem = state.backwardHistoryNotes[state.backwardHistoryNotes.length - 1];
+	const lastItem = state.backwardHistoryNotes[state.backwardHistoryNotes.length - 1];
 	testApp.dispatch({ type: 'FOLDER_AND_NOTE_SELECT', noteId: lastItem.id, folderId: lastItem.parent_id, historyAction: 'pop' });
 };
 
 const goForward = (state) => {
-	let lastItem = state.forwardHistoryNotes[state.forwardHistoryNotes.length - 1];
+	const lastItem = state.forwardHistoryNotes[state.forwardHistoryNotes.length - 1];
 	testApp.dispatch({ type: 'FOLDER_AND_NOTE_SELECT', noteId: lastItem.id, folderId: lastItem.parent_id, historyAction: 'push' });
 };
 
@@ -32,9 +32,9 @@ describe('integration_ForwardBackwardNoteHistory', function() {
 
 	it('should save history when navigating through notes', asyncTest(async () => {
 		// setup
-		let folders = await createNTestFolders(2);
+		const folders = await createNTestFolders(2);
 		await time.msleep(100);
-		let notes0 = await createNTestNotes(5, folders[0]);
+		const notes0 = await createNTestNotes(5, folders[0]);
 		// let notes1 = await createNTestNotes(5, folders[1]);
 		await time.msleep(100);
 
@@ -91,10 +91,10 @@ describe('integration_ForwardBackwardNoteHistory', function() {
 
 
 	it('should save history when navigating through notebooks', asyncTest(async () => {
-		let folders = await createNTestFolders(2);
+		const folders = await createNTestFolders(2);
 		await time.msleep(100);
-		let notes0 = await createNTestNotes(5, folders[0]);
-		let notes1 = await createNTestNotes(5, folders[1]);
+		const notes0 = await createNTestNotes(5, folders[0]);
+		const notes1 = await createNTestNotes(5, folders[1]);
 		await time.msleep(100);
 
 		testApp.dispatch({ type: 'FOLDER_SELECT', id: id(folders[0]) });

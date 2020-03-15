@@ -38,7 +38,7 @@ function initTestState(folders, selectedFolderIndex, notes, selectedNoteIndexes,
 
 function goToNote(notes, selectedNoteIndexes, state) {
 	if (selectedNoteIndexes != null) {
-		let selectedIds = [];
+		const selectedIds = [];
 		for (let i = 0; i < selectedNoteIndexes.length; i++) {
 			selectedIds.push(notes[selectedNoteIndexes[i]].id);
 		}
@@ -383,9 +383,9 @@ describe('Reducer', function() {
 	it('should remove deleted note from history', asyncTest(async () => {
 
 		// create 1 folder
-		let folders = await createNTestFolders(1);
+		const folders = await createNTestFolders(1);
 		// create 5 notes
-		let notes = await createNTestNotes(5, folders[0]);
+		const notes = await createNTestNotes(5, folders[0]);
 		// select the 1st folder and the 1st note
 		let state = initTestState(folders, 0, notes, [0]);
 
@@ -408,8 +408,8 @@ describe('Reducer', function() {
 	}));
 
 	it('should remove all notes of a deleted notebook from history', asyncTest(async () => {
-		let folders = await createNTestFolders(2);
-		let notes = [];
+		const folders = await createNTestFolders(2);
+		const notes = [];
 		for (let i = 0; i < folders.length; i++) {
 			notes.push(...await createNTestNotes(3, folders[i]));
 		}
@@ -430,8 +430,8 @@ describe('Reducer', function() {
 	}));
 
 	it('should maintain history correctly when going backward and forward', asyncTest(async () => {
-		let folders = await createNTestFolders(2);
-		let notes = [];
+		const folders = await createNTestFolders(2);
+		const notes = [];
 		for (let i = 0; i < folders.length; i++) {
 			notes.push(...await createNTestNotes(5, folders[i]));
 		}

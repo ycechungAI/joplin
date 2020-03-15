@@ -108,7 +108,7 @@ stateUtils.lastSelectedNoteIds = function(state) {
 stateUtils.getLastSeenNote = function(state) {
 	const selectedNoteIds = state.selectedNoteIds;
 	const notes = state.notes;
-	if (selectedNoteIds != null && selectedNoteIds.length>0) {
+	if (selectedNoteIds != null && selectedNoteIds.length > 0) {
 		const currNote = notes.find(note => note.id === selectedNoteIds[0]);
 		if (currNote != null) {
 			return {
@@ -278,7 +278,7 @@ function defaultNotesParentType(state, exclusion) {
 function changeSelectedFolder(state, action, options = null) {
 	if (!options) options = {};
 
-	let newState = Object.assign({}, state);
+	const newState = Object.assign({}, state);
 
 	// Save the last seen note so that back will return to it.
 	if (action.type === 'FOLDER_SELECT' && action.historyAction == 'goto') {
@@ -295,7 +295,7 @@ function changeSelectedFolder(state, action, options = null) {
 		newState.backwardHistoryNotes = backwardHistoryNotes;
 		newState.forwardHistoryNotes = forwardHistoryNotes;
 	}
-  
+
 	newState.selectedFolderId = 'folderId' in action ? action.folderId : action.id;
 	if (!newState.selectedFolderId) {
 		newState.notesParentType = defaultNotesParentType(state, 'Folder');
@@ -336,7 +336,7 @@ function changeSelectedNotes(state, action, options = null) {
 		newState.selectedNoteIds = noteIds;
 		newState.selectedNoteHash = action.hash ? action.hash : '';
 
-		let backwardHistoryNotes = newState.backwardHistoryNotes.slice();
+		const backwardHistoryNotes = newState.backwardHistoryNotes.slice();
 		let forwardHistoryNotes = newState.forwardHistoryNotes.slice();
 
 		// The historyAction property is only used for user-initiated actions and tells how
@@ -350,12 +350,12 @@ function changeSelectedNotes(state, action, options = null) {
 			forwardHistoryNotes = [];
 			backwardHistoryNotes.push(Object.assign({}, lastSeenNote));
 		} else if (action.historyAction === 'pop' && lastSeenNote != null) {
-			if (forwardHistoryNotes.length === 0 || lastSeenNote.id != forwardHistoryNotes[forwardHistoryNotes.length-1].id) {
+			if (forwardHistoryNotes.length === 0 || lastSeenNote.id != forwardHistoryNotes[forwardHistoryNotes.length - 1].id) {
 				forwardHistoryNotes.push(Object.assign({}, lastSeenNote));
 			}
 			backwardHistoryNotes.pop();
 		} else if (action.historyAction === 'push' && lastSeenNote != null) {
-			if (backwardHistoryNotes.length === 0 || lastSeenNote.id != backwardHistoryNotes[backwardHistoryNotes.length-1].id) {
+			if (backwardHistoryNotes.length === 0 || lastSeenNote.id != backwardHistoryNotes[backwardHistoryNotes.length - 1].id) {
 				backwardHistoryNotes.push(Object.assign({}, lastSeenNote));
 			}
 			forwardHistoryNotes.pop();
@@ -785,23 +785,25 @@ const reducer = (state = defaultState, action) => {
 			break;
 
 		case 'SEARCH_SELECT':
-			newState = Object.assign({}, state);
-			newState.selectedSearchId = action.id;
-			if (!action.id) {
-				newState.notesParentType = defaultNotesParentType(state, 'Search');
-			} else {
-				newState.notesParentType = 'Search';
-			}
+			{
+				newState = Object.assign({}, state);
+				newState.selectedSearchId = action.id;
+				if (!action.id) {
+					newState.notesParentType = defaultNotesParentType(state, 'Search');
+				} else {
+					newState.notesParentType = 'Search';
+				}
 
-			// Update history when searching
-			var lastSeenNote = stateUtils.getLastSeenNote(state);
-			if (lastSeenNote != null && (state.backwardHistoryNotes.length === 0 ||
-				state.backwardHistoryNotes[state.backwardHistoryNotes.length-1].id != lastSeenNote.id)) {
-				newState.forwardHistoryNotes = [];
-				newState.backwardHistoryNotes.push(Object.assign({},lastSeenNote));
-			}
+				// Update history when searching
+				const lastSeenNote = stateUtils.getLastSeenNote(state);
+				if (lastSeenNote != null && (state.backwardHistoryNotes.length === 0 ||
+					state.backwardHistoryNotes[state.backwardHistoryNotes.length - 1].id != lastSeenNote.id)) {
+					newState.forwardHistoryNotes = [];
+					newState.backwardHistoryNotes.push(Object.assign({},lastSeenNote));
+				}
 
-			newState.selectedNoteIds = [];
+				newState.selectedNoteIds = [];
+			}
 			break;
 
 		case 'APP_STATE_SET':
