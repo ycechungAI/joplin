@@ -135,7 +135,7 @@ const hasCompatibleStyle = function (dom, sib, detail) {
   return sibStyle === detailStyle;
 };
 
-const applyList = function (editor, listName: string, detail = {}) {
+const applyList = function (editor, listName: string, detail:any = {}) {
   const rng = editor.selection.getRng(true);
   let bookmark;
   let listItemName = 'LI';
@@ -164,6 +164,9 @@ const applyList = function (editor, listName: string, detail = {}) {
       sibling.appendChild(block);
     } else {
       listBlock = dom.create(listName);
+      if (detail.listType === 'joplinCheckboxList') {
+        listBlock.classList.add('joplinCheckboxList');
+      }
       block.parentNode.insertBefore(listBlock, block);
       listBlock.appendChild(block);
       block = dom.rename(block, listItemName);

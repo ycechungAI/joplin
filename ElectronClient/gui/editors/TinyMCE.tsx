@@ -207,36 +207,12 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 					id: 'tinyMceScript',
 					loaded: false,
 				},
-				// {
-				// 	src: 'gui/editors/TinyMCE/require.js',
-				// 	id: 'tinyMceRequireJsScript',
-				// 	attrs: {
-				// 		"data-main": "scripts/main",
-				// 	},
-				// 	loaded: false,
-				// },
 				{
-					src: 'gui/editors/TinyMCE/plugins/lists/index.js',
+					src: 'gui/editors/TinyMCE/plugins/lists.js',
 					id: 'tinyMceListsPluginScript',
 					loaded: false,
 				},
-
-				// {
-				// 	src: 'vendor/prism/prism.js',
-				// 	id: 'tinyMcePrismScript',
-				// 	loaded: false,
-				// },
-				// {
-				// 	src: 'vendor/prism/prism.css',
-				// 	id: 'tinyMcePrismStyle',
-				// 	loaded: false,
-				// },
 			];
-
-			// const checkAllLoaded = () => {
-			// 	const allLoaded = !scriptsToLoad.find(s => !s.loaded);
-			// 	if (allLoaded) setScriptLoaded(true);
-			// };
 
 			for (const s of scriptsToLoad) {
 				if (document.getElementById(s.id)) {
@@ -250,39 +226,9 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				if (cancelled) return;
 
 				s.loaded = true;
-
-				// const element:any = document.createElement('script');
-				// element.src = script.src;
-
-				// let element :any= null;
-				// if (s.src.indexOf('.css') >= 0) {
-				// 	element = document.createElement('link');
-				// 	element.rel = 'stylesheet';
-				// 	element.href = s.src;
-				// } else {
-				// 	element = document.createElement('script');
-				// 	element.src = s.src;
-
-				// 	if (s.attrs) {
-				// 		for (const attr in s.attrs) {
-				// 			element[attr] = s.attrs[attr];
-				// 		}
-				// 	}
-				// }
-
-				// element.id = s.id;
-				// element.onload = () => {
-				// 	if (cancelled) return;
-				// 	s.loaded = true;
-				// 	console.info('Script loaded:', s.src);
-				// 	checkAllLoaded();
-				// };
-
-				// document.getElementsByTagName('head')[0].appendChild(element);
 			}
 
 			setScriptLoaded(true);
-			// checkAllLoaded();
 		}
 
 		loadScripts();
@@ -321,7 +267,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				valid_elements: '*[*]', // We already filter in sanitize_html
 				menubar: false,
 				branding: false,
-				toolbar: 'bold italic | link codeformat codesample joplinAttach | numlist bullist joplinCheckbox | h1 h2 h3 hr blockquote',
+				toolbar: 'bold italic | link codeformat codesample joplinAttach | numlist bullist joplinCheckboxList | h1 h2 h3 hr blockquote',
 				setup: (editor:any) => {
 
 					function openEditDialog(editable:any) {
@@ -388,17 +334,6 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 							editor.insertContent(html.join('\n'));
 							editor.fire('joplinChange');
 							dispatchDidUpdate(editor);
-						},
-					});
-
-					editor.ui.registry.addToggleButton('joplinCheckbox', {
-						tooltip: 'Checkbox',
-						icon: 'checklist',
-						onAction: async function() {
-							// editor.execCommand('InsertUnorderedList');
-							// const result = await joplinHtml.current('checkbox');
-							// editor.selection.getNode().outerHTML = result.html;
-							// await loadPluginAssets(editor, result.pluginAssets);
 						},
 					});
 

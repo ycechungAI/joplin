@@ -293,6 +293,35 @@ module.exports = function(style, options) {
 			opacity: 0.5;
 		}
 
+
+
+
+
+
+
+
+
+/* SHOULD BE MOVED TO checkbox.js */
+/* https://stackoverflow.com/questions/7478336/only-detect-click-event-on-pseudo-element#comment39751366_7478344 */
+
+.joplinCheckboxList li {
+  pointer-events: none;
+}
+
+.joplinCheckboxList li::before {
+  content: "[x]";
+  pointer-events: all;
+  cursor: pointer;
+}
+
+/* SHOULD BE MOVED TO checkbox.js */
+
+
+
+
+
+
+
 		@media print {
 			body {
 				height: auto !important;

@@ -34,6 +34,11 @@ const register = function (editor) {
     ToggleList.toggleList(editor, 'OL', detail);
   });
 
+  editor.addCommand('InsertJoplinCheckboxList', function (ui, detail) {
+    detail = Object.assign({}, detail, { listType: 'joplinCheckboxList' });
+    ToggleList.toggleList(editor, 'UL', detail);
+  });
+
   editor.addCommand('InsertDefinitionList', function (ui, detail) {
     ToggleList.toggleList(editor, 'DL', detail);
   });

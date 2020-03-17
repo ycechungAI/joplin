@@ -8,7 +8,8 @@
     "build": "grunt",
     "test": "bedrock-auto -b phantomjs -d src/test/ts/",
     "test-manual": "bedrock -d src/test/ts/",
-    "start": "grunt webpack"
+    "start": "grunt webpack",
+    "buildAndStart": "yarn build && cd ~/src/joplin/ElectronClient && npm start"
   },
   "keywords": [],
   "author": "Tiny Technologies Inc.",

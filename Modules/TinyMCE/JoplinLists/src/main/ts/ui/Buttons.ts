@@ -21,18 +21,58 @@ const findIndex = function (list, predicate) {
   return -1;
 };
 
-const listState = function (editor: Editor, listName) {
+function jp_isCheckboxListItem(element) {
+  return element.classList && element.classList.contains('joplinCheckboxList');
+}
+
+function jp_findContainerListTypeFromEvent(event) {
+  if (jp_isCheckboxListItem(event.element)) return 'joplinCheckboxList';
+
+  for (const parent of event.parents) {
+    if (jp_isCheckboxListItem(parent)) return 'joplinCheckboxList';
+  }
+
+  return 'regular';
+}
+
+// function jp_findContainerListTypeFromElement(element) {
+//   while (element) {
+//     if (element.nodeName === 'UL' || element.nodName === 'OL') {
+//       return jp_isCheckboxListItem(element) ? 'joplinCheckboxList' : 'regular';
+//     }
+//     element = element.parentNode;
+//   }
+
+//   return 'regular';
+// }
+
+const listState = function (editor: Editor, listName, options:any = {}) {
+  options = {
+    listType: 'regular',
+    ...options,
+  };
+
   return function (buttonApi) {
     const nodeChangeHandler = (e) => {
       const tableCellIndex = findIndex(e.parents, NodeType.isTableCellNode);
       const parents = tableCellIndex !== -1 ? e.parents.slice(0, tableCellIndex) : e.parents;
       const lists = Tools.grep(parents, NodeType.isListNode);
-      buttonApi.setActive(lists.length > 0 && lists[0].nodeName === listName && !isCustomList(lists[0]));
+      const listType = jp_findContainerListTypeFromEvent(e);
+      buttonApi.setActive(listType === options.listType && lists.length > 0 && lists[0].nodeName === listName && !isCustomList(lists[0]));
     };
 
-    editor.on('NodeChange', nodeChangeHandler);
+    // const editorClickHandler = (event) => {
+    //   const listType = jp_findContainerListTypeFromElement(event.target);
+    //   console.info('TYPE', listType);
+    // }
 
-    return () => editor.off('NodeChange', nodeChangeHandler);
+    editor.on('NodeChange', nodeChangeHandler);
+    // editor.on('click', editorClickHandler);
+
+    return () => {
+      editor.off('NodeChange', nodeChangeHandler);
+      // editor.off('click', editorClickHandler);
+    } 
   };
 };
 
@@ -59,6 +99,14 @@ const register = function (editor: Editor) {
       tooltip: 'Bullet list',
       onAction: exec('InsertUnorderedList'),
       onSetup: listState(editor, 'UL')
+    });
+
+    editor.ui.registry.addToggleButton('joplinCheckboxList', {
+      icon: 'checklist',
+      active: false,
+      tooltip: 'Checkbox list',
+      onAction: exec('InsertJoplinCheckboxList'),
+      onSetup: listState(editor, 'UL', { listType: 'joplinCheckboxList' })
     });
   }
 };
