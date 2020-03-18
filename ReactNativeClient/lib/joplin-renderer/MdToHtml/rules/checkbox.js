@@ -1,6 +1,8 @@
 let checkboxIndex_ = -1;
 
-const checkboxStyle = `
+const checkboxStyles = [];
+
+checkboxStyles[1] = `
 	/* Remove the indentation from the checkboxes at the root of the document
 	   (otherwise they are too far right), but keep it for their children to allow
 	   nested lists. Make sure this value matches the UL margin. */
@@ -19,6 +21,8 @@ const checkboxStyle = `
 		margin-right: 0.7em;
 	}
 `;
+
+checkboxStyles[2] = '';
 
 function createPrefixTokens(Token, id, checked, label, postMessageSyntax, sourceToken) {
 	let token = null;
@@ -80,6 +84,8 @@ function createSuffixTokens(Token) {
 }
 
 function installRule(markdownIt, mdOptions, ruleOptions, context) {
+	const pluginOptions = { renderingType: 1, ...ruleOptions.plugins['checkbox'] };
+
 	markdownIt.core.ruler.push('checkbox', state => {
 		const tokens = state.tokens;
 		const Token = state.Token;
@@ -87,8 +93,19 @@ function installRule(markdownIt, mdOptions, ruleOptions, context) {
 		const checkboxPattern = /^\[([x|X| ])\] (.*)$/;
 		let currentListItem = null;
 		let processedFirstInline = false;
+		const lists = [];
 		for (let i = 0; i < tokens.length; i++) {
 			const token = tokens[i];
+
+			if (token.type === 'bullet_list_open') {
+				lists.push(token);
+				continue;
+			}
+
+			if (token.type === 'bullet_list_close') {
+				lists.pop();
+				continue;
+			}
 
 			if (token.type === 'list_item_open') {
 				currentListItem = token;
@@ -111,32 +128,51 @@ function installRule(markdownIt, mdOptions, ruleOptions, context) {
 				const matches = checkboxPattern.exec(firstChild.content);
 				if (!matches || matches.length < 2) continue;
 
-				checkboxIndex_++;
 				const checked = matches[1] !== ' ';
-				const id = `md-checkbox-${checkboxIndex_}`;
 				const label = matches.length >= 3 ? matches[2] : '';
 
-				// Prepend the text content with the checkbox markup and the opening <label> tag
-				// then append the </label> tag at the end of the text content.
+				const currentList = lists[lists.length - 1];
 
-				const prefix = createPrefixTokens(Token, id, checked, label, ruleOptions.postMessageSyntax, token);
-				const suffix = createSuffixTokens(Token);
+				if (pluginOptions.renderingType === 1) {
+					checkboxIndex_++;
+					const id = `md-checkbox-${checkboxIndex_}`;
 
-				token.children = markdownIt.utils.arrayReplaceAt(token.children, 0, prefix);
-				token.children = token.children.concat(suffix);
+					// Prepend the text content with the checkbox markup and the opening <label> tag
+					// then append the </label> tag at the end of the text content.
 
-				// Add a class to the <li> container so that it can be targetted with CSS.
+					const prefix = createPrefixTokens(Token, id, checked, label, ruleOptions.postMessageSyntax, token);
+					const suffix = createSuffixTokens(Token);
 
-				let itemClass = currentListItem.attrGet('class');
-				if (!itemClass) itemClass = '';
-				itemClass += ' md-checkbox joplin-checkbox';
-				currentListItem.attrSet('class', itemClass.trim());
+					token.children = markdownIt.utils.arrayReplaceAt(token.children, 0, prefix);
+					token.children = token.children.concat(suffix);
+
+					// Add a class to the <li> container so that it can be targetted with CSS.
+
+					let itemClass = currentListItem.attrGet('class');
+					if (!itemClass) itemClass = '';
+					itemClass += ' md-checkbox joplin-checkbox';
+					currentListItem.attrSet('class', itemClass.trim());
+				} else {
+					const textToken = new Token('text', '', 0);
+					textToken.content = label;
+					const tokens = [];
+					tokens.push(textToken);
+
+					token.children = markdownIt.utils.arrayReplaceAt(token.children, 0, tokens);
+
+					const listClass = currentList.attrGet('class') || '';
+					if (listClass.indexOf('joplin-') < 0) currentList.attrSet('class', (`${listClass} joplin-checklist`).trim());
+
+					if (checked) {
+						currentListItem.attrSet('class', (`${currentListItem.attrGet('class') || ''} checked`).trim());
+					}
+				}
 
 				if (!('checkbox' in context.pluginAssets)) {
 					context.pluginAssets['checkbox'] = [
 						{
 							inline: true,
-							text: checkboxStyle,
+							text: checkboxStyles[pluginOptions.renderingType],
 							mime: 'text/css',
 						},
 					];

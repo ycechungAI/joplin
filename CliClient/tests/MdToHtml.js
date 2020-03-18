@@ -49,6 +49,14 @@ describe('MdToHtml', function() {
 				bodyOnly: true,
 			};
 
+			if (mdFilename === 'checkbox_alternative.md') {
+				mdToHtmlOptions.plugins = {
+					checkbox: {
+						renderingType: 2,
+					},
+				};
+			}
+
 			const markdown = await shim.fsDriver().readFile(mdFilePath);
 			let expectedHtml = await shim.fsDriver().readFile(htmlPath);
 
