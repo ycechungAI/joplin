@@ -3,7 +3,11 @@ const md5 = require('md5');
 const noteStyle = require('./noteStyle');
 const { fileExtension } = require('./pathUtils');
 const memoryCache = require('memory-cache');
+
+// /!\/!\ Note: the order of rules is important!! /!\/!\
 const rules = {
+	fence: require('./MdToHtml/rules/fence').default,
+	sanitize_html: require('./MdToHtml/rules/sanitize_html').default,
 	image: require('./MdToHtml/rules/image'),
 	checkbox: require('./MdToHtml/rules/checkbox'),
 	katex: require('./MdToHtml/rules/katex'),
@@ -11,11 +15,10 @@ const rules = {
 	html_image: require('./MdToHtml/rules/html_image'),
 	highlight_keywords: require('./MdToHtml/rules/highlight_keywords'),
 	code_inline: require('./MdToHtml/rules/code_inline'),
-	fence: require('./MdToHtml/rules/fence').default,
 	fountain: require('./MdToHtml/rules/fountain'),
 	mermaid: require('./MdToHtml/rules/mermaid').default,
-	sanitize_html: require('./MdToHtml/rules/sanitize_html').default,
 };
+
 const setupLinkify = require('./MdToHtml/setupLinkify');
 const hljs = require('highlight.js');
 const uslug = require('uslug');
@@ -131,14 +134,20 @@ class MdToHtml {
 
 	async render(body, style = null, options = null) {
 		options = Object.assign({}, {
+			// In bodyOnly mode, the rendered Markdown is returned without the wrapper DIV
 			bodyOnly: false,
+			// In splitted mode, the CSS and HTML will be returned in separate properties.
+			// In non-splitted mode, CSS and HTML will be merged in the same document.
 			splitted: false,
+			// When this is true, all assets such as CSS or JS are returned as external
+			// files. Otherwise some of them might be in the cssStrings property.
 			externalAssetsOnly: false,
 			postMessageSyntax: 'postMessage',
 			paddingBottom: '0',
 			highlightedKeywords: [],
 			codeTheme: 'atom-one-light.css',
 			style: Object.assign({}, defaultNoteStyle),
+			plugins: {},
 		}, options);
 
 		// The "codeHighlightCacheKey" option indicates what set of cached object should be
@@ -237,19 +246,12 @@ class MdToHtml {
 		// Using the `context` object, a plugin can define what additional assets they need (css, fonts, etc.) using context.pluginAssets.
 		// The calling application will need to handle loading these assets.
 
-		// /!\/!\ Note: the order of rules is important!! /!\/!\
+		for (const key in rules) {
+			if (!this.pluginEnabled(key)) continue;
+			const rule = rules[key];
+			markdownIt.use(rule(context, { ...ruleOptions, ...options.plugins[key] }));
+		}
 
-		markdownIt.use(rules.fence(context, ruleOptions));
-		markdownIt.use(rules.sanitize_html(context, ruleOptions));
-		markdownIt.use(rules.image(context, ruleOptions));
-		markdownIt.use(rules.checkbox(context, ruleOptions));
-		markdownIt.use(rules.link_open(context, ruleOptions));
-		markdownIt.use(rules.html_image(context, ruleOptions));
-		if (this.pluginEnabled('katex')) markdownIt.use(rules.katex(context, ruleOptions));
-		if (this.pluginEnabled('fountain')) markdownIt.use(rules.fountain(context, ruleOptions));
-		if (this.pluginEnabled('mermaid')) markdownIt.use(rules.mermaid(context, ruleOptions));
-		markdownIt.use(rules.highlight_keywords(context, ruleOptions));
-		markdownIt.use(rules.code_inline(context, ruleOptions));
 		markdownIt.use(markdownItAnchor, { slugify: uslugify });
 
 		for (const key in plugins) {
