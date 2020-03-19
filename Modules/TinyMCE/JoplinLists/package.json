@@ -9,7 +9,7 @@
     "test": "bedrock-auto -b phantomjs -d src/test/ts/",
     "test-manual": "bedrock -d src/test/ts/",
     "start": "grunt webpack",
-    "buildAndStart": "yarn build && cd ~/src/joplin/ElectronClient && npm start"
+    "buildAndStart": "yarn build && cd .. && cd .. && cd .. && cd ElectronClient && npm start"
   },
   "keywords": [],
   "author": "Tiny Technologies Inc.",
@@ -45,7 +45,6 @@
     "tsconfig.json",
     "readme.md",
     "LEGAL.txt",
-    "CHANGELOG.txt",
     "LICENSE.txt"
   ],
   "main": "./lib/main/ts/api/Main.js",

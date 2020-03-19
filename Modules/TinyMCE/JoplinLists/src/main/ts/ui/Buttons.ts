@@ -9,6 +9,7 @@ import Tools from 'tinymce/core/api/util/Tools';
 import * as NodeType from '../core/NodeType';
 import Editor from 'tinymce/core/api/Editor';
 import { isCustomList } from '../core/Util';
+import { findContainerListTypeFromEvent } from '../listModel/JoplinListUtil';
 
 const findIndex = function (list, predicate) {
   for (let index = 0; index < list.length; index++) {
@@ -21,31 +22,6 @@ const findIndex = function (list, predicate) {
   return -1;
 };
 
-function jp_isCheckboxListItem(element) {
-  return element.classList && element.classList.contains('joplinCheckboxList');
-}
-
-function jp_findContainerListTypeFromEvent(event) {
-  if (jp_isCheckboxListItem(event.element)) return 'joplinCheckboxList';
-
-  for (const parent of event.parents) {
-    if (jp_isCheckboxListItem(parent)) return 'joplinCheckboxList';
-  }
-
-  return 'regular';
-}
-
-// function jp_findContainerListTypeFromElement(element) {
-//   while (element) {
-//     if (element.nodeName === 'UL' || element.nodName === 'OL') {
-//       return jp_isCheckboxListItem(element) ? 'joplinCheckboxList' : 'regular';
-//     }
-//     element = element.parentNode;
-//   }
-
-//   return 'regular';
-// }
-
 const listState = function (editor: Editor, listName, options:any = {}) {
   options = {
     listType: 'regular',
@@ -57,21 +33,25 @@ const listState = function (editor: Editor, listName, options:any = {}) {
       const tableCellIndex = findIndex(e.parents, NodeType.isTableCellNode);
       const parents = tableCellIndex !== -1 ? e.parents.slice(0, tableCellIndex) : e.parents;
       const lists = Tools.grep(parents, NodeType.isListNode);
-      const listType = jp_findContainerListTypeFromEvent(e);
+      const listType = findContainerListTypeFromEvent(e);
       buttonApi.setActive(listType === options.listType && lists.length > 0 && lists[0].nodeName === listName && !isCustomList(lists[0]));
     };
 
-    // const editorClickHandler = (event) => {
-    //   const listType = jp_findContainerListTypeFromElement(event.target);
-    //   console.info('TYPE', listType);
-    // }
+    const editorClickHandler = (event) => {
+      editor.execCommand('ToggleJoplinChecklistItem', false, { element: event.target });
+    }
+
+    if (options.listType === 'joplinChecklist') {
+      editor.on('click', editorClickHandler);
+    }
 
     editor.on('NodeChange', nodeChangeHandler);
-    // editor.on('click', editorClickHandler);
 
     return () => {
+      if (options.listType === 'joplinChecklist') {
+        editor.off('click', editorClickHandler);
+      }
       editor.off('NodeChange', nodeChangeHandler);
-      // editor.off('click', editorClickHandler);
     } 
   };
 };
@@ -101,12 +81,12 @@ const register = function (editor: Editor) {
       onSetup: listState(editor, 'UL')
     });
 
-    editor.ui.registry.addToggleButton('joplinCheckboxList', {
+    editor.ui.registry.addToggleButton('joplinChecklist', {
       icon: 'checklist',
       active: false,
       tooltip: 'Checkbox list',
-      onAction: exec('InsertJoplinCheckboxList'),
-      onSetup: listState(editor, 'UL', { listType: 'joplinCheckboxList' })
+      onAction: exec('InsertJoplinChecklist'),
+      onSetup: listState(editor, 'UL', { listType: 'joplinChecklist' })
     });
   }
 };

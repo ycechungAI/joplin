@@ -16,6 +16,7 @@ import { fireListEvent } from '../api/Events';
 import { isCustomList } from '../core/Util';
 import Editor from 'tinymce/core/api/Editor';
 import { listToggleActionFromListName } from '../core/ListAction';
+import { findContainerListTypeFromElement } from '../listModel/JoplinListUtil';
 
 const updateListStyle = function (dom, el, detail) {
   const type = detail['list-style-type'] ? detail['list-style-type'] : null;
@@ -38,6 +39,12 @@ const updateListAttrs = function (dom, el, detail) {
 const updateListWithDetails = function (dom, el, detail) {
   updateListStyle(dom, el, detail);
   updateListAttrs(dom, el, detail);
+
+  if (detail.listType === 'joplinChecklist') {
+    el.classList.add('joplin-checklist');
+  } else {
+    el.classList.remove('joplin-checklist');
+  }
 };
 
 const removeStyles = (dom, element: HTMLElement, styles: string[]) => {
@@ -164,8 +171,10 @@ const applyList = function (editor, listName: string, detail:any = {}) {
       sibling.appendChild(block);
     } else {
       listBlock = dom.create(listName);
-      if (detail.listType === 'joplinCheckboxList') {
-        listBlock.classList.add('joplinCheckboxList');
+      if (detail.listType === 'joplinChecklist') {
+        listBlock.classList.add('joplin-checklist');
+      } else {
+        listBlock.classList.remove('joplin-checklist');
       }
       block.parentNode.insertBefore(listBlock, block);
       listBlock.appendChild(block);
@@ -259,7 +268,8 @@ const toggleSingleList =  function (editor, parentList, listName, detail) {
   }
 
   if (parentList) {
-    if (parentList.nodeName === listName && !hasListStyleDetail(detail) && !isCustomList(parentList)) {
+    const listType = findContainerListTypeFromElement(parentList);
+    if (parentList.nodeName === listName && !hasListStyleDetail(detail) && !isCustomList(parentList) && listType === detail.listType) {
       flattenListSelection(editor);
     } else {
       const bookmark = Bookmark.createBookmark(editor.selection.getRng(true));
@@ -279,7 +289,10 @@ const toggleList = function (editor, listName, detail) {
   const parentList = Selection.getParentList(editor);
   const selectedSubLists = Selection.getSelectedSubLists(editor);
 
-  detail = detail ? detail : {};
+  detail = {
+    listType: 'regular',
+    ...detail,
+  }
 
   if (parentList && selectedSubLists.length > 0) {
     toggleMultipleLists(editor, parentList, selectedSubLists, listName, detail);
