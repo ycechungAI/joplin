@@ -267,7 +267,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				valid_elements: '*[*]', // We already filter in sanitize_html
 				menubar: false,
 				branding: false,
-				toolbar: 'bold italic | link codeformat codesample joplinAttach | numlist bullist joplinCheckboxList | h1 h2 h3 hr blockquote',
+				toolbar: 'bold italic | link codeformat codesample joplinAttach | numlist bullist joplinChecklist | h1 h2 h3 hr blockquote',
 				setup: (editor:any) => {
 
 					function openEditDialog(editable:any) {
@@ -362,10 +362,10 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	// Set the initial content and load the plugin CSS and JS files
 	// -----------------------------------------------------------------------------------------
 
-	const loadPluginAssets = (editor:any, pluginAssets:any[]) => {
-		const cssFiles = pluginAssets
+	const loadDocumentAssets = (editor:any, pluginAssets:any[]) => {
+		const cssFiles = ['css/fork-awesome.min.css'].concat(pluginAssets
 			.filter((a:any) => a.mime === 'text/css' && !loadedAssetFiles_.includes(a.path))
-			.map((a:any) => a.path);
+			.map((a:any) => a.path));
 
 		const jsFiles = pluginAssets
 			.filter((a:any) => a.mime === 'application/javascript' && !loadedAssetFiles_.includes(a.path))
@@ -374,7 +374,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 		for (const cssFile of cssFiles) loadedAssetFiles_.push(cssFile);
 		for (const jsFile of jsFiles) loadedAssetFiles_.push(jsFile);
 
-		console.info('loadPluginAssets: files to load', cssFiles, jsFiles);
+		console.info('loadDocumentAssets: files to load', cssFiles, jsFiles);
 
 		if (cssFiles.length) editor.dom.loadCSS(cssFiles.join(','));
 
@@ -399,12 +399,18 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 		let cancelled = false;
 
 		const loadContent = async () => {
-			const result = await props.markupToHtml(props.defaultEditorState.markupLanguage, props.defaultEditorState.value);
+			const result = await props.markupToHtml(props.defaultEditorState.markupLanguage, props.defaultEditorState.value, {
+				plugins: {
+					checkbox: {
+						renderingType: 2,
+					},
+				},
+			});
 			if (cancelled) return;
 
 			editor.setContent(result.html);
 
-			await loadPluginAssets(editor, result.pluginAssets);
+			await loadDocumentAssets(editor, result.pluginAssets);
 
 			editor.getDoc().addEventListener('click', onEditorContentClick);
 
@@ -468,7 +474,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 			//
 			// Any maybe others, so to catch them all we only check the prefix
 
-			const changeCommands = ['mceBlockQuote'];
+			const changeCommands = ['mceBlockQuote', 'ToggleJoplinChecklistItem'];
 
 			if (changeCommands.includes(c) || c.indexOf('Insert') === 0 || c.indexOf('mceToggle') === 0 || c.indexOf('mceInsert') === 0) {
 				onChangeHandler();
