@@ -2,27 +2,58 @@ let checkboxIndex_ = -1;
 
 const checkboxStyles = [];
 
-checkboxStyles[1] = `
-	/* Remove the indentation from the checkboxes at the root of the document
-	   (otherwise they are too far right), but keep it for their children to allow
-	   nested lists. Make sure this value matches the UL margin. */
+checkboxStyles[1] = function(style) {
+	return `
+		/* Remove the indentation from the checkboxes at the root of the document
+		   (otherwise they are too far right), but keep it for their children to allow
+		   nested lists. Make sure this value matches the UL margin. */
 
-	.md-checkbox .checkbox-wrapper {
-		display: flex;
-		align-items: center;
-	}
+		.md-checkbox .checkbox-wrapper {
+			display: flex;
+			align-items: center;
+		}
 
-	li.md-checkbox {
-		list-style-type: none;
-	}
+		li.md-checkbox {
+			list-style-type: none;
+		}
 
-	li.md-checkbox input[type=checkbox] {
-		margin-left: -1.71em;
-		margin-right: 0.7em;
-	}
-`;
+		li.md-checkbox input[type=checkbox] {
+			margin-left: -1.71em;
+			margin-right: 0.7em;
+		}
+	`;
+}
 
-checkboxStyles[2] = '';
+checkboxStyles[2] = function(style) {
+	return `
+		/* https://stackoverflow.com/questions/7478336/only-detect-click-event-on-pseudo-element#comment39751366_7478344 */
+
+		ul.joplin-checklist li {
+			pointer-events: none;
+		}
+
+		ul.joplin-checklist {
+			list-style:none;
+		}
+
+		ul.joplin-checklist li::before {
+			content:"\\f14a";
+			font-family:ForkAwesome;
+			background-size: 16px 16px;
+			pointer-events: all;
+			cursor: pointer;
+			width: 1em;
+			height: 1em;
+			margin-left: -1.3em;
+			position: absolute;
+			color: ${style.htmlColor};
+		}
+
+		.joplin-checklist li:not(.checked)::before {
+			content:"\\f0c8";
+		}
+	`;
+}
 
 function createPrefixTokens(Token, id, checked, label, postMessageSyntax, sourceToken) {
 	let token = null;
@@ -172,7 +203,7 @@ function installRule(markdownIt, mdOptions, ruleOptions, context) {
 					context.pluginAssets['checkbox'] = [
 						{
 							inline: true,
-							text: checkboxStyles[pluginOptions.renderingType],
+							text: checkboxStyles[pluginOptions.renderingType](ruleOptions.style),
 							mime: 'text/css',
 						},
 					];

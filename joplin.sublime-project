@@ -44,7 +44,9 @@
 				"ElectronClient/gui/MultiNoteActions.js",
 				"ElectronClient/gui/NoteContentPropertiesDialog.js",
 				"ElectronClient/gui/utils/NoteText.js",
-				"ElectronClient/gui/editors/TinyMCE/plugins/lists.js"
+				"ElectronClient/gui/editors/TinyMCE/plugins/lists.js",
+				"ReactNativeClient/lib/joplin-renderer/MdToHtml/rules/mermaid.js",
+				"ReactNativeClient/lib/joplin-renderer/MdToHtml/rules/fence.js"
 			],
 			"folder_exclude_patterns":
 			[

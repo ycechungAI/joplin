@@ -43,6 +43,8 @@ function uslugify(s) {
 	return uslug(s);
 }
 
+// TODO: function that returns the assets of each enabled plugin and cache it to file
+
 class MdToHtml {
 	constructor(options = null) {
 		if (!options) options = {};
@@ -132,6 +134,7 @@ class MdToHtml {
 		};
 	}
 
+	// "style" here is really the theme, as returned by themeStyle()
 	async render(body, style = null, options = null) {
 		options = Object.assign({}, {
 			// In bodyOnly mode, the rendered Markdown is returned without the wrapper DIV
@@ -146,7 +149,7 @@ class MdToHtml {
 			paddingBottom: '0',
 			highlightedKeywords: [],
 			codeTheme: 'atom-one-light.css',
-			style: Object.assign({}, defaultNoteStyle),
+			style: Object.assign({}, defaultNoteStyle, style),
 			plugins: {},
 		}, options);
 
@@ -159,7 +162,7 @@ class MdToHtml {
 			this.lastCodeHighlightCacheKey_ = options.codeHighlightCacheKey;
 		}
 
-		const cacheKey = md5(escape(body + JSON.stringify(options) + JSON.stringify(style)));
+		const cacheKey = md5(escape(body + JSON.stringify(options) + JSON.stringify(options.style)));
 		const cachedOutput = this.cachedOutputs_[cacheKey];
 		if (cachedOutput) return cachedOutput;
 
@@ -262,7 +265,7 @@ class MdToHtml {
 
 		const renderedBody = markdownIt.render(body);
 
-		let cssStrings = noteStyle(style, options);
+		let cssStrings = noteStyle(options.style, options);
 
 		const pluginAssets = this.processPluginAssets(context.pluginAssets);
 		cssStrings = cssStrings.concat(pluginAssets.cssStrings);
