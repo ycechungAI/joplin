@@ -1,58 +1,68 @@
 let checkboxIndex_ = -1;
 
-const checkboxStyles:Function[] = [];
+const pluginAssets:Function[] = [];
 
-checkboxStyles[1] = function() {
-	return `
-		/* Remove the indentation from the checkboxes at the root of the document
-		   (otherwise they are too far right), but keep it for their children to allow
-		   nested lists. Make sure this value matches the UL margin. */
+pluginAssets[1] = function() {
+	return [
+		{
+			inline: true,
+			mime: 'text/css',
+			text: `
+				/* Remove the indentation from the checkboxes at the root of the document
+				   (otherwise they are too far right), but keep it for their children to allow
+				   nested lists. Make sure this value matches the UL margin. */
 
-		.md-checkbox .checkbox-wrapper {
-			display: flex;
-			align-items: center;
-		}
+				.md-checkbox .checkbox-wrapper {
+					display: flex;
+					align-items: center;
+				}
 
-		li.md-checkbox {
-			list-style-type: none;
-		}
+				li.md-checkbox {
+					list-style-type: none;
+				}
 
-		li.md-checkbox input[type=checkbox] {
-			margin-left: -1.71em;
-			margin-right: 0.7em;
-		}
-	`;
+				li.md-checkbox input[type=checkbox] {
+					margin-left: -1.71em;
+					margin-right: 0.7em;
+				}`,
+		},
+	];
 }
 
-checkboxStyles[2] = function(theme:any) {
-	return `
-		/* https://stackoverflow.com/questions/7478336/only-detect-click-event-on-pseudo-element#comment39751366_7478344 */
+pluginAssets[2] = function(theme:any) {
+	return [
+		{
+			inline: true,
+			mime: 'text/css',
+			text: `
+				/* https://stackoverflow.com/questions/7478336/only-detect-click-event-on-pseudo-element#comment39751366_7478344 */
 
-		ul.joplin-checklist li {
-			pointer-events: none;
-		}
+				ul.joplin-checklist li {
+					pointer-events: none;
+				}
 
-		ul.joplin-checklist {
-			list-style:none;
-		}
+				ul.joplin-checklist {
+					list-style:none;
+				}
 
-		ul.joplin-checklist li::before {
-			content:"\\f14a";
-			font-family:ForkAwesome;
-			background-size: 16px 16px;
-			pointer-events: all;
-			cursor: pointer;
-			width: 1em;
-			height: 1em;
-			margin-left: -1.3em;
-			position: absolute;
-			color: ${theme.htmlColor};
-		}
+				ul.joplin-checklist li::before {
+					content:"\\f14a";
+					font-family:ForkAwesome;
+					background-size: 16px 16px;
+					pointer-events: all;
+					cursor: pointer;
+					width: 1em;
+					height: 1em;
+					margin-left: -1.3em;
+					position: absolute;
+					color: ${theme.htmlColor};
+				}
 
-		.joplin-checklist li:not(.checked)::before {
-			content:"\\f0c8";
-		}
-	`;
+				.joplin-checklist li:not(.checked)::before {
+					content:"\\f0c8";
+				}`,
+		},
+	];
 }
 
 function createPrefixTokens(Token:any, id:string, checked:boolean, label:string, postMessageSyntax:string, sourceToken:any):any[] {
@@ -201,23 +211,18 @@ function installRule(markdownIt:any, mdOptions:any, ruleOptions:any, context:any
 				}
 
 				if (!('checkbox' in context.pluginAssets)) {
-					context.pluginAssets['checkbox'] = [
-						{
-							inline: true,
-							text: checkboxStyles[pluginOptions.renderingType](ruleOptions.style),
-							mime: 'text/css',
-						},
-					];
+					context.pluginAssets['checkbox'] = pluginAssets[pluginOptions.renderingType](ruleOptions.theme);
 				}
 			}
 		}
 	});
 }
 
-export default function(context:any, ruleOptions:any) {
-	return function(md:any, mdOptions:any) {
-		installRule(md, mdOptions, ruleOptions, context);
-	};
+export default {
+	install: function(context:any, ruleOptions:any) {
+		return function(md:any, mdOptions:any) {
+			installRule(md, mdOptions, ruleOptions, context);
+		}
+	},
+	style: pluginAssets[2],
 };
-
-export { checkboxStyles as style };

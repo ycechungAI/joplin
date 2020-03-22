@@ -9,7 +9,7 @@ const rules = {
 	fence: require('./MdToHtml/rules/fence').default,
 	sanitize_html: require('./MdToHtml/rules/sanitize_html').default,
 	image: require('./MdToHtml/rules/image'),
-	checkbox: require('./MdToHtml/rules/checkbox'),
+	checkbox: require('./MdToHtml/rules/checkbox').default,
 	katex: require('./MdToHtml/rules/katex'),
 	link_open: require('./MdToHtml/rules/link_open'),
 	html_image: require('./MdToHtml/rules/html_image'),
@@ -42,8 +42,6 @@ const defaultNoteStyle = require('./defaultNoteStyle');
 function uslugify(s) {
 	return uslug(s);
 }
-
-// TODO: function that returns the assets of each enabled plugin and cache it to file
 
 class MdToHtml {
 	constructor(options = null) {
@@ -80,6 +78,13 @@ class MdToHtml {
 
 	tempDir() {
 		return this.tempDir_;
+	}
+
+	static pluginNames() {
+		const output = [];
+		for (const n in rules) output.push(n);
+		for (const n in plugins) output.push(n);
+		return output;		
 	}
 
 	pluginOptions(name) {
@@ -120,8 +125,10 @@ class MdToHtml {
 						throw new Error(`Unsupported inline mime type: ${mime}`);
 					}
 				} else {
+					const name = `${pluginName}/${asset.name}`;
 					files.push(Object.assign({}, asset, {
-						name: `${pluginName}/${asset.name}`,
+						name: name,
+						path: 'pluginAssets/' + name,
 						mime: mime,
 					}));
 				}
@@ -129,13 +136,38 @@ class MdToHtml {
 		}
 
 		return {
-			files: files,
+			pluginAssets: files,
 			cssStrings: cssStrings,
 		};
 	}
 
+	async allAssets(theme) {
+		const assets = {};
+		for (const key in rules) {
+			if (!this.pluginEnabled(key)) continue;
+			const rule = rules[key];
+
+			if (rule.style) {
+				assets[key] = rule.style(theme);
+			}
+		}
+
+		const processedAssets = this.processPluginAssets(assets);
+		processedAssets.cssStrings.splice(0, 0, noteStyle(theme));
+		const output = await this.outputAssetsToExternalAssets_(processedAssets);
+		return output.pluginAssets;
+	}
+
+	async outputAssetsToExternalAssets_(output) {
+		for (const cssString of output.cssStrings) {
+			output.pluginAssets.push(await this.fsDriver().cacheCssToFile(cssString));
+		}
+		delete output.cssStrings;
+		return output;
+	};
+
 	// "style" here is really the theme, as returned by themeStyle()
-	async render(body, style = null, options = null) {
+	async render(body, theme = null, options = null) {
 		options = Object.assign({}, {
 			// In bodyOnly mode, the rendered Markdown is returned without the wrapper DIV
 			bodyOnly: false,
@@ -146,10 +178,9 @@ class MdToHtml {
 			// files. Otherwise some of them might be in the cssStrings property.
 			externalAssetsOnly: false,
 			postMessageSyntax: 'postMessage',
-			paddingBottom: '0',
 			highlightedKeywords: [],
 			codeTheme: 'atom-one-light.css',
-			style: Object.assign({}, defaultNoteStyle, style),
+			theme: Object.assign({}, defaultNoteStyle, theme),
 			plugins: {},
 		}, options);
 
@@ -162,7 +193,7 @@ class MdToHtml {
 			this.lastCodeHighlightCacheKey_ = options.codeHighlightCacheKey;
 		}
 
-		const cacheKey = md5(escape(body + JSON.stringify(options) + JSON.stringify(options.style)));
+		const cacheKey = md5(escape(body + JSON.stringify(options) + JSON.stringify(options.theme)));
 		const cachedOutput = this.cachedOutputs_[cacheKey];
 		if (cachedOutput) return cachedOutput;
 
@@ -252,7 +283,8 @@ class MdToHtml {
 		for (const key in rules) {
 			if (!this.pluginEnabled(key)) continue;
 			const rule = rules[key];
-			markdownIt.use(rule(context, { ...ruleOptions }));
+			const ruleInstall = rule.install ? rule.install : rule;
+			markdownIt.use(ruleInstall(context, { ...ruleOptions }));
 		}
 
 		markdownIt.use(markdownItAnchor, { slugify: uslugify });
@@ -265,47 +297,27 @@ class MdToHtml {
 
 		const renderedBody = markdownIt.render(body);
 
-		let cssStrings = noteStyle(options.style, options);
+		let cssStrings = noteStyle(options.theme);
 
-		const pluginAssets = this.processPluginAssets(context.pluginAssets);
-		cssStrings = cssStrings.concat(pluginAssets.cssStrings);
-
-		let output = {
-			pluginAssets: pluginAssets.files.map(f => {
-				return Object.assign({}, f, {
-					path: `pluginAssets/${f.name}`,
-				});
-			}),
-		};
-
-		const handleExternalAssetsOnly = async (output) => {
-			if (options.externalAssetsOnly) {
-				for (const cssString of cssStrings) {
-					output.pluginAssets.push(await this.fsDriver().cacheCssToFile(cssString));
-				}
-			}
-			return output;
-		};
+		let output = this.processPluginAssets(context.pluginAssets);
+		cssStrings = cssStrings.concat(output.cssStrings);
 
 		if (options.bodyOnly) {
 			output.html = renderedBody;
-			output = await handleExternalAssetsOnly(output);
-			return output;
-		}
-
-		if (options.userCss) cssStrings.push(options.userCss);
-
-		const styleHtml = `<style>${cssStrings.join('\n')}</style>`;
-
-		const html = `${styleHtml}<div id="rendered-md">${renderedBody}</div>`;
-
-		output.html = html;
-
-		if (options.splitted) {
 			output.cssStrings = cssStrings;
-			output.html = `<div id="rendered-md">${renderedBody}</div>`;
-			output = await handleExternalAssetsOnly(output);
+		} else {
+			if (options.userCss) cssStrings.push(options.userCss);
+
+			const styleHtml = `<style>${cssStrings.join('\n')}</style>`;
+			output.html = `${styleHtml}<div id="rendered-md">${renderedBody}</div>`;
+
+			if (options.splitted) {
+				output.cssStrings = cssStrings;
+				output.html = `<div id="rendered-md">${renderedBody}</div>`;
+			}
 		}
+
+		if (options.externalAssetsOnly) output = await this.outputAssetsToExternalAssets_(output);
 
 		// Fow now, we keep only the last entry in the cache
 		this.cachedOutputs_ = {};

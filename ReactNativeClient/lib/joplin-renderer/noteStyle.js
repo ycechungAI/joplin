@@ -1,5 +1,5 @@
-module.exports = function(style, options) {
-	style = style ? style : {};
+module.exports = function(theme) {
+	theme = theme ? theme : {};
 
 	// https://necolas.github.io/normalize.css/
 	const normalizeCss = `
@@ -14,23 +14,23 @@ module.exports = function(style, options) {
 	const css =
 		`
 		body {
-			font-size: ${style.htmlFontSize};
-			color: ${style.htmlColor};
+			font-size: ${theme.htmlFontSize};
+			color: ${theme.htmlColor};
 			word-wrap: break-word;
-			line-height: ${style.htmlLineHeight};
-			background-color: ${style.htmlBackgroundColor};
+			line-height: ${theme.htmlLineHeight};
+			background-color: ${theme.htmlBackgroundColor};
 			font-family: ${fontFamily};
-			padding-bottom: ${options.paddingBottom};
+			padding-bottom: ${theme.bodyPaddingBottom};
 		}
 		strong {
-			color: ${style.colorBright};
+			color: ${theme.colorBright};
 		}
 		kbd {
-			border: 1px solid ${style.htmlCodeBorderColor};
-			box-shadow: inset 0 -1px 0 ${style.htmlCodeBorderColor};
+			border: 1px solid ${theme.htmlCodeBorderColor};
+			box-shadow: inset 0 -1px 0 ${theme.htmlCodeBorderColor};
 			padding: 2px 4px;
 			border-radius: 3px;
-			background-color: ${style.htmlCodeBackgroundColor};
+			background-color: ${theme.htmlCodeBackgroundColor};
 		}
 		::-webkit-scrollbar {
 			width: 7px;
@@ -79,7 +79,7 @@ module.exports = function(style, options) {
 		h1 {
 			font-size: 1.5em;
 			font-weight: bold;
-			border-bottom: 1px solid ${style.htmlDividerColor};
+			border-bottom: 1px solid ${theme.htmlDividerColor};
 			padding-bottom: .3em;
 		}
 		h2 {
@@ -95,7 +95,7 @@ module.exports = function(style, options) {
 			font-weight: bold;
 		}
 		a {
-			color: ${style.htmlLinkColor};
+			color: ${theme.htmlLinkColor};
 		}
 		ul, ol {
 			padding-left: 0;
@@ -116,7 +116,7 @@ module.exports = function(style, options) {
 			width: 1.2em;
 			height: 1.4em;
 			margin-right: 0.4em;
-			background-color:  ${style.htmlLinkColor};
+			background-color:  ${theme.htmlLinkColor};
 		}
     /* These icons are obtained from the wonderful ForkAwesome project by copying the src svgs 
      * into the css classes below.
@@ -177,7 +177,7 @@ module.exports = function(style, options) {
       -webkit-mask-repeat: no-repeat;
 		}
 		blockquote {
-			border-left: 4px solid ${style.htmlCodeBorderColor};
+			border-left: 4px solid ${theme.htmlCodeBorderColor};
 			padding-left: 1.2em;
 			margin-left: 0;
 			opacity: .7;
@@ -185,45 +185,45 @@ module.exports = function(style, options) {
 		table {
 			text-align: left-align;
 			border-collapse: collapse;
-			border: 1px solid ${style.htmlCodeBorderColor};
-			background-color: ${style.htmlBackgroundColor};
+			border: 1px solid ${theme.htmlCodeBorderColor};
+			background-color: ${theme.htmlBackgroundColor};
 		}
 		td, th {
 			padding: .5em 1em .5em 1em;
-			font-size: ${style.htmlFontSize};
-			color: ${style.htmlColor};
+			font-size: ${theme.htmlFontSize};
+			color: ${theme.htmlColor};
 			font-family: ${fontFamily};
 		}
 		td {
-			border: 1px solid ${style.htmlCodeBorderColor};
+			border: 1px solid ${theme.htmlCodeBorderColor};
 		}
 		th {
-			border: 1px solid ${style.htmlCodeBorderColor};
-			border-bottom: 2px solid ${style.htmlCodeBorderColor};
-			background-color: ${style.htmlTableBackgroundColor};
+			border: 1px solid ${theme.htmlCodeBorderColor};
+			border-bottom: 2px solid ${theme.htmlCodeBorderColor};
+			background-color: ${theme.htmlTableBackgroundColor};
 		}
 		tr:nth-child(even) {
-			background-color: ${style.htmlTableBackgroundColor};
+			background-color: ${theme.htmlTableBackgroundColor};
 		}
 		tr:hover {
-			background-color: ${style.raisedBackgroundColor};
+			background-color: ${theme.raisedBackgroundColor};
 		}
 		hr {
 			border: none;
-			border-bottom: 2px solid ${style.htmlDividerColor};
+			border-bottom: 2px solid ${theme.htmlDividerColor};
 		}
 		img {
 			max-width: 100%;
 			height: auto;
 		}
 		.inline-code {
-			border: 1px solid ${style.htmlCodeBorderColor};
-			background-color: ${style.htmlCodeBackgroundColor};
+			border: 1px solid ${theme.htmlCodeBorderColor};
+			background-color: ${theme.htmlCodeBackgroundColor};
 			padding-right: .2em;
 			padding-left: .2em;
 			border-radius: .25em;
-			color: ${style.htmlCodeColor};
-			font-size: ${style.htmlCodeFontSize};
+			color: ${theme.htmlCodeColor};
+			font-size: ${theme.htmlCodeFontSize};
 		}
 
 		.highlighted-keyword {

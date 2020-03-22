@@ -14,6 +14,7 @@ interface TinyMCEProps {
 	onWillChange(event:any): void,
 	defaultEditorState: DefaultEditorState,
 	markupToHtml: Function,
+	allAssets: Function,
 	attachResources: Function,
 	joplinHtml: Function,
 	disabled: boolean,
@@ -410,7 +411,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 
 			editor.setContent(result.html);
 
-			await loadDocumentAssets(editor, result.pluginAssets);
+			await loadDocumentAssets(editor, await props.allAssets(props.defaultEditorState.markupLanguage));
 
 			editor.getDoc().addEventListener('click', onEditorContentClick);
 
@@ -423,7 +424,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 			cancelled = true;
 			editor.getDoc().removeEventListener('click', onEditorContentClick);
 		};
-	}, [editor, props.markupToHtml, props.defaultEditorState, onEditorContentClick]);
+	}, [editor, props.markupToHtml, props.allAssets, props.defaultEditorState, onEditorContentClick]);
 
 	// -----------------------------------------------------------------------------------------
 	// Handle onChange event
