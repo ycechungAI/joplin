@@ -1,8 +1,8 @@
 let checkboxIndex_ = -1;
 
-const checkboxStyles = [];
+const checkboxStyles:Function[] = [];
 
-checkboxStyles[1] = function(style) {
+checkboxStyles[1] = function() {
 	return `
 		/* Remove the indentation from the checkboxes at the root of the document
 		   (otherwise they are too far right), but keep it for their children to allow
@@ -24,7 +24,7 @@ checkboxStyles[1] = function(style) {
 	`;
 }
 
-checkboxStyles[2] = function(style) {
+checkboxStyles[2] = function(theme:any) {
 	return `
 		/* https://stackoverflow.com/questions/7478336/only-detect-click-event-on-pseudo-element#comment39751366_7478344 */
 
@@ -46,7 +46,7 @@ checkboxStyles[2] = function(style) {
 			height: 1em;
 			margin-left: -1.3em;
 			position: absolute;
-			color: ${style.htmlColor};
+			color: ${theme.htmlColor};
 		}
 
 		.joplin-checklist li:not(.checked)::before {
@@ -55,7 +55,7 @@ checkboxStyles[2] = function(style) {
 	`;
 }
 
-function createPrefixTokens(Token, id, checked, label, postMessageSyntax, sourceToken) {
+function createPrefixTokens(Token:any, id:string, checked:boolean, label:string, postMessageSyntax:string, sourceToken:any):any[] {
 	let token = null;
 	const tokens = [];
 
@@ -107,17 +107,18 @@ function createPrefixTokens(Token, id, checked, label, postMessageSyntax, source
 	return tokens;
 }
 
-function createSuffixTokens(Token) {
+function createSuffixTokens(Token:any):any[] {
 	return [
 		new Token('label_close', 'label', -1),
 		new Token('checkbox_wrapper_close', 'div', -1),
 	];
 }
 
-function installRule(markdownIt, mdOptions, ruleOptions, context) {
+// @ts-ignore: Keep the function signature as-is despite unusued arguments
+function installRule(markdownIt:any, mdOptions:any, ruleOptions:any, context:any) {
 	const pluginOptions = { renderingType: 1, ...ruleOptions.plugins['checkbox'] };
 
-	markdownIt.core.ruler.push('checkbox', state => {
+	markdownIt.core.ruler.push('checkbox', (state:any) => {
 		const tokens = state.tokens;
 		const Token = state.Token;
 
@@ -213,8 +214,10 @@ function installRule(markdownIt, mdOptions, ruleOptions, context) {
 	});
 }
 
-module.exports = function(context, ruleOptions) {
-	return function(md, mdOptions) {
+export default function(context:any, ruleOptions:any) {
+	return function(md:any, mdOptions:any) {
 		installRule(md, mdOptions, ruleOptions, context);
 	};
 };
+
+export { checkboxStyles as style };
