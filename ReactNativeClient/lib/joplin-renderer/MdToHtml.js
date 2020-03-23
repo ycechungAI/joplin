@@ -84,7 +84,7 @@ class MdToHtml {
 		const output = [];
 		for (const n in rules) output.push(n);
 		for (const n in plugins) output.push(n);
-		return output;		
+		return output;
 	}
 
 	pluginOptions(name) {
@@ -128,7 +128,7 @@ class MdToHtml {
 					const name = `${pluginName}/${asset.name}`;
 					files.push(Object.assign({}, asset, {
 						name: name,
-						path: 'pluginAssets/' + name,
+						path: `pluginAssets/${name}`,
 						mime: mime,
 					}));
 				}
@@ -164,7 +164,7 @@ class MdToHtml {
 		}
 		delete output.cssStrings;
 		return output;
-	};
+	}
 
 	// "style" here is really the theme, as returned by themeStyle()
 	async render(body, theme = null, options = null) {
@@ -302,12 +302,12 @@ class MdToHtml {
 		let output = this.processPluginAssets(context.pluginAssets);
 		cssStrings = cssStrings.concat(output.cssStrings);
 
+		if (options.userCss) cssStrings.push(options.userCss);
+
 		if (options.bodyOnly) {
 			output.html = renderedBody;
 			output.cssStrings = cssStrings;
 		} else {
-			if (options.userCss) cssStrings.push(options.userCss);
-
 			const styleHtml = `<style>${cssStrings.join('\n')}</style>`;
 			output.html = `${styleHtml}<div id="rendered-md">${renderedBody}</div>`;
 

@@ -122,25 +122,36 @@ describe('MdToHtml', function() {
 		}
 	}));
 
+	it('should wrapped the rendered Markdown', asyncTest(async () => {
+		const mdToHtml = newTestMdToHtml();
+
+		// In this case, the HTML contains both the style and
+		// the rendered markdown wrapped in a DIV.
+		const result = await mdToHtml.render('just **testing**');
+		expect(result.cssStrings.length).toBe(0);
+		expect(result.html.indexOf('rendered-md') >= 0).toBe(true);
+	}));
+
 	it('should return the rendered body only', asyncTest(async () => {
 		const mdToHtml = newTestMdToHtml();
 
-		{
-			// In this case, the HTML contains both the style and
-			// the rendered markdown wrapped in a DIV.
-			const result = await mdToHtml.render('just **testing**');
-			expect(result.cssStrings.length).toBe(0);
-			expect(result.html.indexOf('rendered-md') >= 0).toBe(true);
-		}
-
-		{
-			// In this case, the HTML contains only the rendered markdown,
-			// with no wrapper and no style.
-			// The style is instead in the cssStrings property.
-			const result = await mdToHtml.render('just **testing**', null, { bodyOnly: true });
-			expect(result.cssStrings.length).toBe(1);
-			expect(result.html.trim()).toBe('<p>just <strong>testing</strong></p>');
-		}
+		// In this case, the HTML contains only the rendered markdown,
+		// with no wrapper and no style.
+		// The style is instead in the cssStrings property.
+		const result = await mdToHtml.render('just **testing**', null, { bodyOnly: true });
+		expect(result.cssStrings.length).toBe(1);
+		expect(result.html.trim()).toBe('<p>just <strong>testing</strong></p>');
 	}));
+
+	it('should split HTML and CSS', asyncTest(async () => {
+		const mdToHtml = newTestMdToHtml();
+
+		// It is similar to the bodyOnly option, excepts that
+		// the rendered Markdown is wrapped in a DIV
+		const result = await mdToHtml.render('just **testing**', null, { splitted: true });
+		expect(result.cssStrings.length).toBe(1);
+		expect(result.html.trim()).toBe('<div id="rendered-md"><p>just <strong>testing</strong></p>\n</div>');
+	}));
+
 
 });
