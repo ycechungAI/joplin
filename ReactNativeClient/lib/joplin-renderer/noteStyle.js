@@ -1,18 +1,16 @@
 module.exports = function(theme) {
 	theme = theme ? theme : {};
 
-	// https://necolas.github.io/normalize.css/
-	const normalizeCss = `
-		html{line-height:1.15;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}body{margin:0}
-		article,aside,footer,header,nav,section{display:block}h1{font-size:2em;margin:.67em 0}hr{box-sizing:content-box;height:0;overflow:visible}
-		pre{font-family:monospace,monospace;font-size:1em}a{background-color:transparent;-webkit-text-decoration-skip:objects}
-		b,strong{font-weight:bolder}small{font-size:80%}img{border-style:none}
-	`;
-
 	const fontFamily = '\'Avenir\', \'Arial\', sans-serif';
 
 	const css =
 		`
+		/* https://necolas.github.io/normalize.css/ */
+		html{line-height:1.15;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}body{margin:0}
+		article,aside,footer,header,nav,section{display:block}h1{font-size:2em;margin:.67em 0}hr{box-sizing:content-box;height:0;overflow:visible}
+		pre{font-family:monospace,monospace;font-size:1em}a{background-color:transparent;-webkit-text-decoration-skip:objects}
+		b,strong{font-weight:bolder}small{font-size:80%}img{border-style:none}
+
 		body {
 			font-size: ${theme.htmlFontSize};
 			color: ${theme.htmlColor};
@@ -316,5 +314,5 @@ module.exports = function(theme) {
 		}
 	`;
 
-	return [normalizeCss, css];
+	return [css];
 };

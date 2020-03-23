@@ -27,7 +27,7 @@ function newTestMdToHtml(options = null) {
 		},
 		fsDriver: shim.fsDriver(),
 		...options,
-	}
+	};
 
 	return  new MdToHtml(options);
 }
@@ -119,6 +119,27 @@ describe('MdToHtml', function() {
 
 			const content = await shim.fsDriver().readFile(assets[1].path);
 			expect(content.indexOf('joplin-checklist') >= 0).toBe(true);
+		}
+	}));
+
+	it('should return the rendered body only', asyncTest(async () => {
+		const mdToHtml = newTestMdToHtml();
+
+		{
+			// In this case, the HTML contains both the style and
+			// the rendered markdown wrapped in a DIV.
+			const result = await mdToHtml.render('just **testing**');
+			expect(result.cssStrings.length).toBe(0);
+			expect(result.html.indexOf('rendered-md') >= 0).toBe(true);
+		}
+
+		{
+			// In this case, the HTML contains only the rendered markdown,
+			// with no wrapper and no style.
+			// The style is instead in the cssStrings property.
+			const result = await mdToHtml.render('just **testing**', null, { bodyOnly: true });
+			expect(result.cssStrings.length).toBe(1);
+			expect(result.html.trim()).toBe('<p>just <strong>testing</strong></p>');
 		}
 	}));
 
