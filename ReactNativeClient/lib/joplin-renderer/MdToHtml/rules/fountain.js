@@ -106,7 +106,7 @@ function renderFountainScript(markdownIt, content) {
 	const result = fountain.parse(content);
 
 	return `
-		<div class="fountain joplin-editable">
+		<div class="fountain joplin-editable mceNonEditable">
 			<pre class="joplin-source" data-joplin-source-open="\`\`\`fountain&#10;" data-joplin-source-close="&#10;\`\`\`&#10;">${markdownIt.utils.escapeHtml(content)}</pre>
 			<div class="title-page">
 				${result.html.title_page}

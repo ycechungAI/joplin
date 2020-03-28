@@ -25,6 +25,7 @@ const { shim } = require('lib/shim');
 const TemplateUtils = require('lib/TemplateUtils');
 const { bridge } = require('electron').remote.require('./bridge');
 const { urlDecode } = require('lib/string-utils');
+const ResourceFetcher = require('lib/services/ResourceFetcher');
 
 interface NoteTextProps {
 	style: any,
@@ -534,9 +535,9 @@ function NoteText2(props:NoteTextProps) {
 			// ls.searching = false;
 			// this.setState({ localSearch: ls });
 		} else if (msg.indexOf('markForDownload:') === 0) {
-			// const s = msg.split(':');
-			// if (s.length < 2) throw new Error(`Invalid message: ${msg}`);
-			// ResourceFetcher.instance().markForDownload(s[1]);
+			const s = msg.split(':');
+			if (s.length < 2) throw new Error(`Invalid message: ${msg}`);
+			ResourceFetcher.instance().markForDownload(s[1]);
 		} else if (msg === 'percentScroll') {
 			// this.ignoreNextEditorScroll_ = true;
 			// this.setEditorPercentScroll(arg0);

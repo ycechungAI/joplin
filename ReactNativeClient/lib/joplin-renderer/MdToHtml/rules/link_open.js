@@ -31,7 +31,7 @@ function installRule(markdownIt, mdOptions, ruleOptions) {
 
 			if (result && resourceStatus !== 'ready' && !ruleOptions.plainResourceRendering) {
 				const icon = utils.resourceStatusFile(resourceStatus);
-				return `<a class="not-loaded-resource resource-status-${resourceStatus}" data-resource-id="${resourceId}">` + `<img src="data:image/svg+xml;utf8,${htmlentities(icon)}"/>`;
+				return `<a class="mceNonEditable not-loaded-resource resource-status-${resourceStatus}" data-resource-id="${resourceId}">` + `<img src="data:image/svg+xml;utf8,${htmlentities(icon)}"/>`;
 			} else {
 				href = `joplin://${resourceId}`;
 				if (resourceHrefInfo.hash) href += `#${resourceHrefInfo.hash}`;

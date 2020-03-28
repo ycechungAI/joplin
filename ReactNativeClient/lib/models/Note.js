@@ -4,6 +4,7 @@ const BaseItem = require('lib/models/BaseItem.js');
 const ItemChange = require('lib/models/ItemChange.js');
 const Resource = require('lib/models/Resource.js');
 const Setting = require('lib/models/Setting.js');
+const ResourceLocalState = require('lib/models/ResourceLocalState.js');
 const { shim } = require('lib/shim.js');
 const { pregQuote } = require('lib/string-utils.js');
 const { time } = require('lib/time-utils.js');
@@ -12,6 +13,7 @@ const ArrayUtils = require('lib/ArrayUtils.js');
 const lodash = require('lodash');
 const urlUtils = require('lib/urlUtils.js');
 const { MarkupToHtml } = require('lib/joplin-renderer');
+const rendererUtils = require('lib/joplin-renderer').utils;
 const { ALL_NOTES_FILTER_ID } = require('lib/reserved-ids');
 
 class Note extends BaseItem {
@@ -155,13 +157,24 @@ class Note extends BaseItem {
 
 		const resourceIds = await this.linkedResourceIds(body);
 		const Resource = this.getClass('Resource');
+		const localStates = await ResourceLocalState.byResourceIds(resourceIds);
 
 		for (let i = 0; i < resourceIds.length; i++) {
 			const id = resourceIds[i];
 			const resource = await Resource.load(id);
 			if (!resource) continue;
-			const resourcePath = options.useAbsolutePaths ? Resource.fullPath(resource) : Resource.relativePath(resource);
-			body = body.replace(new RegExp(`:/${id}`, 'gi'), resourcePath);
+
+			const localState = localStates[id];
+
+			const resourceStatus = rendererUtils.resourceStatus({
+				item: resource,
+				localState: localState,
+			});
+
+			if (resourceStatus === 'ready') {
+				const resourcePath = options.useAbsolutePaths ? Resource.fullPath(resource) : Resource.relativePath(resource);
+				body = body.replace(new RegExp(`:/${id}`, 'gi'), resourcePath);
+			}
 		}
 
 		return body;

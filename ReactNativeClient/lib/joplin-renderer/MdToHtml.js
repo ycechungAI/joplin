@@ -250,7 +250,7 @@ class MdToHtml {
 
 				return {
 					wrapCode: false,
-					html: `<div class="joplin-editable">${sourceBlockHtml}<pre class="hljs"><code>${outputCodeHtml}</code></pre></div>`,
+					html: `<div class="joplin-editable mceNonEditable">${sourceBlockHtml}<pre class="hljs"><code>${outputCodeHtml}</code></pre></div>`,
 				};
 			},
 		});

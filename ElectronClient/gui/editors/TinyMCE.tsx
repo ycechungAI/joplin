@@ -34,9 +34,9 @@ function findBlockSource(node:any) {
 	};
 }
 
-function findEditableContainer(node:any):any {
+function findContainerByClass(node:any, className:string):any {
 	while (node) {
-		if (node.classList && node.classList.contains('joplin-editable')) return node;
+		if (node.classList && node.classList.contains(className)) return node;
 		node = node.parentNode;
 	}
 	return null;
@@ -128,6 +128,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 		if (nodeName === 'INPUT' && event.target.getAttribute('type') === 'checkbox') {
 			editor.fire('joplinChange');
 			dispatchDidUpdate(editor);
+			return;
 		}
 
 		if (nodeName === 'A' && event.ctrlKey) {
@@ -149,6 +150,15 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 					},
 				});
 			}
+			return;
+		}
+
+		const noLoadedResourceElement = findContainerByClass(event.target, 'not-loaded-resource');
+		if (noLoadedResourceElement) {
+			const resourceId = noLoadedResourceElement.getAttribute('data-resource-id');
+			props.onMessage({
+				name: `markForDownload:${resourceId}`,
+			});
 		}
 	}, [editor, props.onMessage]);
 
@@ -288,7 +298,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 				height: '100%',
 				resize: false,
 				plugins: 'noneditable link joplinLists hr searchreplace codesample',
-				noneditable_noneditable_class: 'joplin-editable', // Can be a regex too
+				noneditable_noneditable_class: 'mceNonEditable', // Can be a regex too
 				valid_elements: '*[*]', // We already filter in sanitize_html
 				menubar: false,
 				branding: false,
@@ -364,7 +374,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 
 					// TODO: remove event on unmount?
 					editor.on('DblClick', (event:any) => {
-						const editable = findEditableContainer(event.target);
+						const editable = findContainerByClass(event.target, 'joplin-editable');
 						if (editable) openEditDialog(editable);
 					});
 

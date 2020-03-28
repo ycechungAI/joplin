@@ -10,19 +10,46 @@ class ResourceLocalState extends BaseModel {
 		return BaseModel.TYPE_RESOURCE_LOCAL_STATE;
 	}
 
-	static async byResourceId(resourceId) {
-		if (!resourceId) throw new Error('Resource ID not provided'); // Sanity check
+	static async byResourceIds(resourceIds) {
+		if (!resourceIds.length) return {};
 
-		const result = await this.modelSelectOne('SELECT * FROM resource_local_states WHERE resource_id = ?', [resourceId]);
+		const output = {};
+		const rows = await this.modelSelectAll(`SELECT * FROM resource_local_states WHERE resource_id IN ("${resourceIds.join('","')}")`);
 
-		if (!result) {
+		const foundIds = [];
+		for (const row of rows) {
+			foundIds.push(row.resource_id);
+			output[row.resource_id] = row;
+		}
+
+		for (const resourceId of resourceIds) {
+			if (foundIds.includes(resourceId)) continue;
+
 			const defaultRow = this.db().createDefaultRow(this.tableName());
 			delete defaultRow.id;
 			defaultRow.resource_id = resourceId;
-			return defaultRow;
+			output[resourceId] = defaultRow;
 		}
 
-		return result;
+		return output;
+	}
+
+	static async byResourceId(resourceId) {
+		if (!resourceId) throw new Error('Resource ID not provided'); // Sanity check
+
+		const r = await this.byResourceIds([resourceId]);
+		return r[resourceId];
+
+		// const result = await this.modelSelectOne('SELECT * FROM resource_local_states WHERE resource_id = ?', [resourceId]);
+
+		// if (!result) {
+		// 	const defaultRow = this.db().createDefaultRow(this.tableName());
+		// 	delete defaultRow.id;
+		// 	defaultRow.resource_id = resourceId;
+		// 	return defaultRow;
+		// }
+
+		// return result;
 	}
 
 	static async save(o) {
