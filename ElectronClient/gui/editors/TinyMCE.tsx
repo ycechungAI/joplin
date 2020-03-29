@@ -398,6 +398,7 @@ const TinyMCE = (props:TinyMCEProps, ref:any) => {
 	// -----------------------------------------------------------------------------------------
 
 	const loadDocumentAssets = (editor:any, pluginAssets:any[]) => {
+		// TODO: make sure that permanent scripts are not loaded twice
 		const cssFiles = ['css/fork-awesome.min.css'].concat(pluginAssets
 			.filter((a:any) => a.mime === 'text/css' && !loadedAssetFiles_.includes(a.path))
 			.map((a:any) => a.path));

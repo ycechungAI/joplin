@@ -26,6 +26,7 @@ const TemplateUtils = require('lib/TemplateUtils');
 const { bridge } = require('electron').remote.require('./bridge');
 const { urlDecode } = require('lib/string-utils');
 const ResourceFetcher = require('lib/services/ResourceFetcher');
+const shared = require('lib/components/shared/note-screen-shared.js');
 
 interface NoteTextProps {
 	style: any,
@@ -140,7 +141,7 @@ function usePrevious(value:any):any {
 	return ref.current;
 }
 
-function initNoteState(n:any, setFormNote:Function, setDefaultEditorState:Function) {
+async function initNoteState(n:any, setFormNote:Function, setDefaultEditorState:Function) {
 	let originalCss = '';
 	if (n.markup_language === MarkupToHtml.MARKUP_LANGUAGE_HTML) {
 		const htmlToHtml = new HtmlToHtml();
@@ -161,9 +162,12 @@ function initNoteState(n:any, setFormNote:Function, setDefaultEditorState:Functi
 		hasChanged: false,
 	});
 
+	const resources = await shared.attachedResources(n.body);
+
 	setDefaultEditorState({
 		value: n.body,
 		markupLanguage: n.markup_language,
+		resources: resources,
 	});
 }
 
@@ -421,7 +425,7 @@ function NoteText2(props:NoteTextProps) {
 				return;
 			}
 
-			initNoteState(n, setFormNote, setDefaultEditorState);
+			await initNoteState(n, setFormNote, setDefaultEditorState);
 		};
 
 		loadNote();
@@ -463,7 +467,7 @@ function NoteText2(props:NoteTextProps) {
 			if (cancelled) return;
 			if (!n) throw new Error(`Cannot find note with ID: ${props.noteId}`);
 			reg.logger().debug('Loaded note:', n);
-			initNoteState(n, setFormNote, setDefaultEditorState);
+			await initNoteState(n, setFormNote, setDefaultEditorState);
 
 			handleAutoFocus(!!n.is_todo);
 		}

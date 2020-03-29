@@ -68,6 +68,8 @@ utils.resourceStatusIcon = function(state) {
 };
 
 utils.resourceStatus = function(ResourceModel, resourceInfo) {
+	console.info('resourceInfo', resourceInfo);
+
 	if (!ResourceModel) return 'ready';
 
 	let resourceStatus = 'ready';
@@ -105,7 +107,7 @@ utils.imageReplacement = function(ResourceModel, src, resources, resourceBaseUrl
 	if (resourceStatus !== 'ready') {
 		// const icon = utils.resourceStatusImage(resourceStatus);
 		// return `<div class="mceNonEditable not-loaded-resource resource-status-${resourceStatus}" data-resource-id="${resourceId}">` + `<img src="data:image/svg+xml;utf8,${htmlentities(icon)}"/>` + '</div>';
-		return `<div class="mceNonEditable not-loaded-resource resource-status-${resourceStatus}" data-resource-id="${resourceId}">` + `<i class="fa ${utils.resourceStatusIcon(resourceStatus)}"></i>` + '</div>';
+		return `<a class="mceNonEditable not-loaded-resource resource-status-${resourceStatus}" data-resource-id="${resourceId}">` + `<i class="fa ${utils.resourceStatusIcon(resourceStatus)}"></i>` + '</a>';
 	}
 
 	const mime = resource.mime ? resource.mime.toLowerCase() : '';

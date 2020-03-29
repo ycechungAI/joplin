@@ -166,7 +166,7 @@ class Note extends BaseItem {
 
 			const localState = localStates[id];
 
-			const resourceStatus = rendererUtils.resourceStatus({
+			const resourceStatus = rendererUtils.resourceStatus(Resource, {
 				item: resource,
 				localState: localState,
 			});

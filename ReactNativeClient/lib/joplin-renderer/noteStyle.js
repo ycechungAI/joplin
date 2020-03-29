@@ -230,7 +230,8 @@ module.exports = function(theme) {
 			color: black;
 		}
 
-		.not-loaded-resource img {
+		.not-loaded-resource img,
+		.not-loaded-resource i {
 			width: 1.15em;
 			height: 1.15em;
 			background: white;
@@ -239,7 +240,8 @@ module.exports = function(theme) {
 			box-shadow: 0 1px 3px #000000aa;
 		}
 
-		a.not-loaded-resource img {
+		a.not-loaded-resource img,
+		a.not-loaded-resource i {
 			margin-right: .2em;
 		}
 
