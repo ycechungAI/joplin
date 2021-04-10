@@ -18,6 +18,15 @@ class Setting extends BaseModel {
 		return BaseModel.TYPE_SETTING;
 	}
 
+	static keychainService() {
+		if (!this.keychainService_) throw new Error('keychainService has not been set!!');
+		return this.keychainService_;
+	}
+
+	static setKeychainService(s) {
+		this.keychainService_ = s;
+	}
+
 	static metadata() {
 		if (this.metadata_) return this.metadata_;
 
@@ -37,26 +46,30 @@ class Setting extends BaseModel {
 		// if if private a setting might still be handled and modified by the app. For instance, the settings related to sorting notes are not
 		// public for the mobile and desktop apps because they are handled separately in menus.
 
+		const themeOptions = () => {
+			const output = {};
+			output[Setting.THEME_LIGHT] = _('Light');
+			output[Setting.THEME_DARK] = _('Dark');
+			output[Setting.THEME_DRACULA] = _('Dracula');
+			output[Setting.THEME_SOLARIZED_LIGHT] = _('Solarised Light');
+			output[Setting.THEME_SOLARIZED_DARK] = _('Solarised Dark');
+			output[Setting.THEME_NORD] = _('Nord');
+			output[Setting.THEME_ARITIM_DARK] = _('Aritim Dark');
+			output[Setting.THEME_OLED_DARK] = _('OLED Dark');
+			return output;
+		};
+
 		this.metadata_ = {
 			'clientId': {
 				value: '',
 				type: Setting.TYPE_STRING,
 				public: false,
 			},
-			'editor.keyboardMode': {
-				value: 'default',
-				type: Setting.TYPE_STRING,
-				public: true,
+			'editor.codeView': {
+				value: true,
+				type: Setting.TYPE_BOOL,
+				public: false,
 				appTypes: ['desktop'],
-				isEnum: true,
-				label: () => _('Keyboard Mode'),
-				options: () => {
-					const output = {};
-					output['default'] = _('Default');
-					output['emacs'] = _('Emacs');
-					output['vim'] = _('Vim');
-					return output;
-				},
 			},
 			'sync.target': {
 				value: SyncTargetRegistry.nameToId('dropbox'),
@@ -71,6 +84,12 @@ class Setting extends BaseModel {
 				options: () => {
 					return SyncTargetRegistry.idAndLabelPlainObject(platform);
 				},
+			},
+
+			'sync.upgradeState': {
+				value: Setting.SYNC_UPGRADE_STATE_IDLE,
+				type: Setting.TYPE_INT,
+				public: false,
 			},
 
 			'sync.2.path': {
@@ -158,16 +177,45 @@ class Setting extends BaseModel {
 				secure: true,
 			},
 
-			'sync.3.auth': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.4.auth': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.7.auth': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.1.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.2.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.3.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.4.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.5.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.6.context': { value: '', type: Setting.TYPE_STRING, public: false },
-			'sync.7.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.8.path': {
+				value: '',
+				type: Setting.TYPE_STRING,
+				section: 'sync',
+				show: settings => {
+					try {
+						return settings['sync.target'] == SyncTargetRegistry.nameToId('amazon_s3');
+					} catch (error) {
+						return false;
+					}
+				},
+				filter: value => {
+					return value ? rtrimSlashes(value) : '';
+				},
+				public: true,
+				label: () => _('AWS S3 bucket'),
+				description: () => emptyDirWarning,
+			},
+			'sync.8.username': {
+				value: '',
+				type: Setting.TYPE_STRING,
+				section: 'sync',
+				show: settings => {
+					return settings['sync.target'] == SyncTargetRegistry.nameToId('amazon_s3');
+				},
+				public: true,
+				label: () => _('AWS key'),
+			},
+			'sync.8.password': {
+				value: '',
+				type: Setting.TYPE_STRING,
+				section: 'sync',
+				show: settings => {
+					return settings['sync.target'] == SyncTargetRegistry.nameToId('amazon_s3');
+				},
+				public: true,
+				label: () => _('AWS secret'),
+				secure: true,
+			},
 
 			'sync.5.syncTargets': { value: {}, type: Setting.TYPE_OBJECT, public: false },
 
@@ -189,6 +237,18 @@ class Setting extends BaseModel {
 					};
 				},
 			},
+
+			'sync.3.auth': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.4.auth': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.7.auth': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.1.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.2.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.3.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.4.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.5.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.6.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.7.context': { value: '', type: Setting.TYPE_STRING, public: false },
+			'sync.8.context': { value: '', type: Setting.TYPE_STRING, public: false },
 
 			'sync.maxConcurrentConnections': { value: 5, type: Setting.TYPE_INT, public: true, advanced: true, section: 'sync', label: () => _('Max concurrent connections'), minimum: 1, maximum: 20, step: 1 },
 
@@ -237,31 +297,60 @@ class Setting extends BaseModel {
 					return options;
 				},
 			},
+
 			theme: {
 				value: Setting.THEME_LIGHT,
 				type: Setting.TYPE_INT,
 				public: true,
 				appTypes: ['mobile', 'desktop'],
+				show: (settings) => {
+					return !settings['themeAutoDetect'];
+				},
 				isEnum: true,
 				label: () => _('Theme'),
 				section: 'appearance',
-				options: () => {
-					const output = {};
-					output[Setting.THEME_LIGHT] = _('Light');
-					output[Setting.THEME_DARK] = _('Dark');
-					if (platform !== mobilePlatform) {
-						output[Setting.THEME_DRACULA] = _('Dracula');
-						output[Setting.THEME_SOLARIZED_LIGHT] = _('Solarised Light');
-						output[Setting.THEME_SOLARIZED_DARK] = _('Solarised Dark');
-						output[Setting.THEME_NORD] = _('Nord');
-						output[Setting.THEME_ARITIM_DARK] = _('Aritim Dark');
-					} else {
-						output[Setting.THEME_OLED_DARK] = _('OLED Dark');
-					}
-					return output;
-				},
+				options: () => themeOptions(),
 			},
-			showNoteCounts: { value: true, type: Setting.TYPE_BOOL, public: true, appTypes: ['desktop'], label: () => _('Show note counts') },
+
+			themeAutoDetect: {
+				value: false,
+				type: Setting.TYPE_BOOL,
+				section: 'appearance',
+				appTypes: ['desktop'],
+				public: true,
+				label: () => _('Automatically switch theme to match system theme'),
+			},
+
+			preferredLightTheme: {
+				value: Setting.THEME_LIGHT,
+				type: Setting.TYPE_INT,
+				public: true,
+				show: (settings) => {
+					return settings['themeAutoDetect'];
+				},
+				appTypes: ['desktop'],
+				isEnum: true,
+				label: () => _('Preferred light theme'),
+				section: 'appearance',
+				options: () => themeOptions(),
+			},
+
+			preferredDarkTheme: {
+				value: Setting.THEME_DARK,
+				type: Setting.TYPE_INT,
+				public: true,
+				show: (settings) => {
+					return settings['themeAutoDetect'];
+				},
+				appTypes: ['desktop'],
+				isEnum: true,
+				label: () => _('Preferred dark theme'),
+				section: 'appearance',
+				options: () => themeOptions(),
+			},
+
+			showNoteCounts: { value: true, type: Setting.TYPE_BOOL, public: false, advanced: true, appTypes: ['desktop'], label: () => _('Show note counts') },
+
 			layoutButtonSequence: {
 				value: Setting.LAYOUT_ALL,
 				type: Setting.TYPE_INT,
@@ -273,7 +362,6 @@ class Setting extends BaseModel {
 					[Setting.LAYOUT_EDITOR_VIEWER]: _('%s / %s', _('Editor'), _('Viewer')),
 					[Setting.LAYOUT_EDITOR_SPLIT]: _('%s / %s', _('Editor'), _('Split View')),
 					[Setting.LAYOUT_VIEWER_SPLIT]: _('%s / %s', _('Viewer'), _('Split View')),
-					[Setting.LAYOUT_SPLIT_WYSIWYG]: _('%s / %s', _('Split'), 'WYSIWYG (Experimental)'),
 				}),
 			},
 			uncompletedTodosOnTop: { value: true, type: Setting.TYPE_BOOL, section: 'note', public: true, appTypes: ['cli'], label: () => _('Uncompleted to-dos on top') },
@@ -288,7 +376,7 @@ class Setting extends BaseModel {
 				label: () => _('Sort notes by'),
 				options: () => {
 					const Note = require('lib/models/Note');
-					const noteSortFields = ['user_updated_time', 'user_created_time', 'title'];
+					const noteSortFields = ['user_updated_time', 'user_created_time', 'title', 'order'];
 					const options = {};
 					for (let i = 0; i < noteSortFields.length; i++) {
 						options[noteSortFields[i]] = toTitleCase(Note.fieldToLabel(noteSortFields[i]));
@@ -303,6 +391,14 @@ class Setting extends BaseModel {
 				section: 'note',
 				appTypes: ['desktop'],
 				label: () => _('Auto-pair braces, parenthesis, quotations, etc.'),
+			},
+			'editor.betaCodeMirror': {
+				value: false,
+				type: Setting.TYPE_BOOL,
+				public: true,
+				section: 'note',
+				appTypes: ['desktop'],
+				label: () => _('Use CodeMirror as the code editor (WARNING: BETA).'),
 			},
 			'notes.sortOrder.reverse': { value: true, type: Setting.TYPE_BOOL, section: 'note', public: true, label: () => _('Reverse sort order'), appTypes: ['cli'] },
 			'folders.sortOrder.field': {
@@ -408,6 +504,7 @@ class Setting extends BaseModel {
 
 			collapsedFolderIds: { value: [], type: Setting.TYPE_ARRAY, public: false },
 
+			'keychain.supported': { value: -1, type: Setting.TYPE_INT, public: false },
 			'db.ftsEnabled': { value: -1, type: Setting.TYPE_INT, public: false },
 			'encryption.enabled': { value: false, type: Setting.TYPE_BOOL, public: false },
 			'encryption.activeMasterKeyId': { value: '', type: Setting.TYPE_STRING, public: false },
@@ -455,7 +552,7 @@ class Setting extends BaseModel {
 						section: 'appearance',
 						label: () => _('Editor font family'),
 						description: () =>
-							_('This must be *monospace* font or it will not work properly. If the font ' +
+							_('This should be a *monospace* font or some elements will render incorrectly. If the font ' +
 						'is incorrect or empty, it will default to a generic monospace font.'),
 					},
 			'style.sidebar.width': { value: 150, minimum: 80, maximum: 400, type: Setting.TYPE_INT, public: false, appTypes: ['desktop'] },
@@ -528,7 +625,7 @@ class Setting extends BaseModel {
 			tagHeaderIsExpanded: { value: true, type: Setting.TYPE_BOOL, public: false, appTypes: ['desktop'] },
 			folderHeaderIsExpanded: { value: true, type: Setting.TYPE_BOOL, public: false, appTypes: ['desktop'] },
 			editor: { value: '', type: Setting.TYPE_STRING, subType: 'file_path_and_args', public: true, appTypes: ['cli', 'desktop'], label: () => _('Text editor command'), description: () => _('The editor command (may include arguments) that will be used to open a note. If none is provided it will try to auto-detect the default editor.') },
-			'export.pdfPageSize': { value: 'A4', type: Setting.TYPE_STRING, isEnum: true, public: true, appTypes: ['desktop'], label: () => _('Page size for PDF export'), options: () => {
+			'export.pdfPageSize': { value: 'A4', type: Setting.TYPE_STRING, advanced: true, isEnum: true, public: true, appTypes: ['desktop'], label: () => _('Page size for PDF export'), options: () => {
 				return {
 					'A4': _('A4'),
 					'Letter': _('Letter'),
@@ -538,13 +635,29 @@ class Setting extends BaseModel {
 					'Legal': _('Legal'),
 				};
 			} },
-			'export.pdfPageOrientation': { value: 'portrait', type: Setting.TYPE_STRING, isEnum: true, public: true, appTypes: ['desktop'], label: () => _('Page orientation for PDF export'), options: () => {
+			'export.pdfPageOrientation': { value: 'portrait', type: Setting.TYPE_STRING, advanced: true, isEnum: true, public: true, appTypes: ['desktop'], label: () => _('Page orientation for PDF export'), options: () => {
 				return {
 					'portrait': _('Portrait'),
 					'landscape': _('Landscape'),
 				};
 			} },
 
+			'editor.keyboardMode': {
+				value: '',
+				type: Setting.TYPE_STRING,
+				public: true,
+				appTypes: ['desktop'],
+				isEnum: true,
+				advanced: true,
+				label: () => _('Keyboard Mode'),
+				options: () => {
+					const output = {};
+					output[''] = _('Default');
+					output['emacs'] = _('Emacs');
+					output['vim'] = _('Vim');
+					return output;
+				},
+			},
 
 			'net.customCertificates': {
 				value: '',
@@ -623,6 +736,46 @@ class Setting extends BaseModel {
 				maximum: 300,
 				step: 10,
 			},
+
+			'layout.folderList.factor': {
+				value: 1,
+				type: Setting.TYPE_INT,
+				section: 'appearance',
+				public: true,
+				appTypes: ['cli'],
+				label: () => _('Notebook list growth factor'),
+				description: () =>
+					_('The factor property sets how the item will grow or shrink ' +
+				'to fit the available space in its container with respect to the other items. ' +
+				'Thus an item with a factor of 2 will take twice as much space as an item with a factor of 1.' +
+				'Restart app to see changes.'),
+			},
+			'layout.noteList.factor': {
+				value: 1,
+				type: Setting.TYPE_INT,
+				section: 'appearance',
+				public: true,
+				appTypes: ['cli'],
+				label: () => _('Note list growth factor'),
+				description: () =>
+					_('The factor property sets how the item will grow or shrink ' +
+				'to fit the available space in its container with respect to the other items. ' +
+				'Thus an item with a factor of 2 will take twice as much space as an item with a factor of 1.' +
+				'Restart app to see changes.'),
+			},
+			'layout.note.factor': {
+				value: 2,
+				type: Setting.TYPE_INT,
+				section: 'appearance',
+				public: true,
+				appTypes: ['cli'],
+				label: () => _('Note area growth factor'),
+				description: () =>
+					_('The factor property sets how the item will grow or shrink ' +
+				'to fit the available space in its container with respect to the other items. ' +
+				'Thus an item with a factor of 2 will take twice as much space as an item with a factor of 1.' +
+				'Restart app to see changes.'),
+			},
 		};
 
 		return this.metadata_;
@@ -646,7 +799,15 @@ class Setting extends BaseModel {
 		return md.description(appType);
 	}
 
-	static keys(publicOnly = false, appType = null) {
+	static isSecureKey(key) {
+		return this.metadata()[key] && this.metadata()[key].secure === true;
+	}
+
+	static keys(publicOnly = false, appType = null, options = null) {
+		options = Object.assign({}, {
+			secureOnly: false,
+		}, options);
+
 		if (!this.keys_) {
 			const metadata = this.metadata();
 			this.keys_ = [];
@@ -656,12 +817,13 @@ class Setting extends BaseModel {
 			}
 		}
 
-		if (appType || publicOnly) {
+		if (appType || publicOnly || options.secureOnly) {
 			const output = [];
 			for (let i = 0; i < this.keys_.length; i++) {
 				const md = this.settingMetadata(this.keys_[i]);
 				if (publicOnly && !md.public) continue;
 				if (appType && md.appTypes && md.appTypes.indexOf(appType) < 0) continue;
+				if (options.secureOnly && !md.secure) continue;
 				output.push(md.key);
 			}
 			return output;
@@ -674,21 +836,52 @@ class Setting extends BaseModel {
 		return this.keys(true).indexOf(key) >= 0;
 	}
 
+	// Low-level method to load a setting directly from the database. Should not be used in most cases.
+	static loadOne(key) {
+		return this.modelSelectOne('SELECT * FROM settings WHERE key = ?', [key]);
+	}
+
 	static load() {
 		this.cancelScheduleSave();
 		this.cache_ = [];
-		return this.modelSelectAll('SELECT * FROM settings').then(rows => {
+		return this.modelSelectAll('SELECT * FROM settings').then(async (rows) => {
 			this.cache_ = [];
 
-			for (let i = 0; i < rows.length; i++) {
-				const c = rows[i];
+			const pushItemsToCache = (items) => {
+				for (let i = 0; i < items.length; i++) {
+					const c = items[i];
 
-				if (!this.keyExists(c.key)) continue;
-				c.value = this.formatValue(c.key, c.value);
-				c.value = this.filterValue(c.key, c.value);
+					if (!this.keyExists(c.key)) continue;
 
-				this.cache_.push(c);
+					c.value = this.formatValue(c.key, c.value);
+					c.value = this.filterValue(c.key, c.value);
+
+					this.cache_.push(c);
+				}
+			};
+
+			// Keys in the database takes precedence over keys in the keychain because
+			// they are more likely to be up to date (saving to keychain can fail, but
+			// saving to database shouldn't). When the keychain works, the secure keys
+			// are deleted from the database and transfered to the keychain in saveAll().
+
+			const rowKeys = rows.map(r => r.key);
+			const secureKeys = this.keys(false, null, { secureOnly: true });
+			const secureItems = [];
+			for (const key of secureKeys) {
+				if (rowKeys.includes(key)) continue;
+
+				const password = await this.keychainService().password(`setting.${key}`);
+				if (password) {
+					secureItems.push({
+						key: key,
+						value: password,
+					});
+				}
 			}
+
+			pushItemsToCache(rows);
+			pushItemsToCache(secureItems);
 
 			this.dispatchUpdateAll();
 		});
@@ -771,6 +964,10 @@ class Setting extends BaseModel {
 		return this.setValue(key, this.value(key) + inc);
 	}
 
+	static toggle(key) {
+		return this.setValue(key, !this.value(key));
+	}
+
 	static setObjectKey(settingKey, objectKey, value) {
 		let o = this.value(settingKey);
 		if (typeof o !== 'object') o = {};
@@ -783,6 +980,13 @@ class Setting extends BaseModel {
 		if (typeof o !== 'object') return;
 		delete o[objectKey];
 		this.setValue(settingKey, o);
+	}
+
+	static async deleteKeychainPasswords() {
+		const secureKeys = this.keys(false, null, { secureOnly: true });
+		for (const key of secureKeys) {
+			await this.keychainService().deletePassword(`setting.${key}`);
+		}
 	}
 
 	static valueToString(key, value) {
@@ -854,7 +1058,7 @@ class Setting extends BaseModel {
 		if (key in this.constants_) {
 			const v = this.constants_[key];
 			const output = typeof v === 'function' ? v() : v;
-			if (output == 'SET_ME') throw new Error(`Setting constant has not been set: ${key}`);
+			if (output == 'SET_ME') throw new Error(`SET_ME constant has not been set: ${key}`);
 			return output;
 		}
 
@@ -935,7 +1139,7 @@ class Setting extends BaseModel {
 	}
 
 	static async saveAll() {
-		if (!this.saveTimeoutId_) return Promise.resolve();
+		if (Setting.autoSaveEnabled && !this.saveTimeoutId_) return Promise.resolve();
 
 		this.logger().info('Saving settings...');
 		clearTimeout(this.saveTimeoutId_);
@@ -946,6 +1150,31 @@ class Setting extends BaseModel {
 		for (let i = 0; i < this.cache_.length; i++) {
 			const s = Object.assign({}, this.cache_[i]);
 			s.value = this.valueToString(s.key, s.value);
+
+			if (this.isSecureKey(s.key)) {
+				// We need to be careful here because there's a bug in the macOS keychain that can
+				// make it fail to save a password. https://github.com/desktop/desktop/issues/3263
+				// So we try to set it and if it fails, we set it on the database instead. This is not
+				// ideal because they won't be crypted, but better than losing all the user's passwords.
+				// The passwords would be set again on the keychain once it starts working again (probably
+				// after the user switch their computer off and on again).
+				//
+				// Also we don't control what happens on the keychain - the values can be edited or deleted
+				// outside the application. For that reason, we rewrite it every time the values are saved,
+				// even if, internally, they haven't changed.
+				// As an optimisation, we check if the value exists on the keychain before writing it again.
+				try {
+					const passwordName = `setting.${s.key}`;
+					const currentValue = await this.keychainService().password(passwordName);
+					if (currentValue !== s.value) {
+						const wasSet = await this.keychainService().setPassword(passwordName, s.value);
+						if (wasSet) continue;
+					}
+				} catch (error) {
+					this.logger().error(`Could not set setting on the keychain. Will be saved to database instead: ${s.key}:`, error);
+				}
+			}
+
 			queries.push(Database.insertQuery(this.tableName(), s));
 		}
 
@@ -959,8 +1188,12 @@ class Setting extends BaseModel {
 
 		if (this.saveTimeoutId_) clearTimeout(this.saveTimeoutId_);
 
-		this.saveTimeoutId_ = setTimeout(() => {
-			this.saveAll();
+		this.saveTimeoutId_ = setTimeout(async () => {
+			try {
+				await this.saveAll();
+			} catch (error) {
+				this.logger().error('Could not save settings', error);
+			}
 		}, 500);
 	}
 
@@ -1035,15 +1268,15 @@ class Setting extends BaseModel {
 	}
 
 	static sectionNameToIcon(name) {
-		if (name === 'general') return 'fa-sliders';
-		if (name === 'sync') return 'fa-refresh';
-		if (name === 'appearance') return 'fa-pencil';
-		if (name === 'note') return 'fa-file-text-o';
-		if (name === 'plugins') return 'fa-puzzle-piece';
-		if (name === 'application') return 'fa-cog';
-		if (name === 'revisionService') return 'fa-archive-org';
-		if (name === 'encryption') return 'fa-key-modern';
-		if (name === 'server') return 'fa-hand-scissors-o';
+		if (name === 'general') return 'fas fa-sliders-h';
+		if (name === 'sync') return 'fas fa-sync-alt';
+		if (name === 'appearance') return 'fas fa-pencil-alt';
+		if (name === 'note') return 'far fa-file-alt';
+		if (name === 'plugins') return 'fas fa-puzzle-piece';
+		if (name === 'application') return 'fas fa-cog';
+		if (name === 'revisionService') return 'fas fa-history';
+		if (name === 'encryption') return 'fas fa-key';
+		if (name === 'server') return 'far fa-hand-scissors';
 		return name;
 	}
 
@@ -1080,7 +1313,6 @@ Setting.LAYOUT_ALL = 0;
 Setting.LAYOUT_EDITOR_VIEWER = 1;
 Setting.LAYOUT_EDITOR_SPLIT = 2;
 Setting.LAYOUT_VIEWER_SPLIT = 3;
-Setting.LAYOUT_SPLIT_WYSIWYG = 4;
 
 Setting.DATE_FORMAT_1 = 'DD/MM/YYYY';
 Setting.DATE_FORMAT_2 = 'DD/MM/YY';
@@ -1096,6 +1328,10 @@ Setting.TIME_FORMAT_2 = 'h:mm A';
 Setting.SHOULD_REENCRYPT_NO = 0; // Data doesn't need to be re-encrypted
 Setting.SHOULD_REENCRYPT_YES = 1; // Data should be re-encrypted
 Setting.SHOULD_REENCRYPT_NOTIFIED = 2; // Data should be re-encrypted, and user has been notified
+
+Setting.SYNC_UPGRADE_STATE_IDLE = 0; // Doesn't need to be upgraded
+Setting.SYNC_UPGRADE_STATE_SHOULD_DO = 1; // Should be upgraded, but waiting for user to confirm
+Setting.SYNC_UPGRADE_STATE_MUST_DO = 2; // Must be upgraded - on next restart, the upgrade will start
 
 Setting.custom_css_files = {
 	JOPLIN_APP: 'userchrome.css',
@@ -1117,7 +1353,7 @@ Setting.constants_ = {
 	templateDir: '',
 	tempDir: '',
 	flagOpenDevTools: false,
-	syncVersion: 1,
+	syncVersion: 2,
 };
 
 Setting.autoSaveEnabled = true;

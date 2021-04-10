@@ -8,7 +8,7 @@ const { ElectronAppWrapper } = require('./ElectronAppWrapper');
 const { initBridge } = require('./bridge');
 const { Logger } = require('lib/logger.js');
 const { FsDriverNode } = require('lib/fs-driver-node.js');
-const envFromArgs = require('./envFromArgs');
+const envFromArgs = require('lib/envFromArgs');
 
 process.on('unhandledRejection', (reason, p) => {
 	console.error('Unhandled promise rejection', p, 'reason:', reason);
@@ -29,8 +29,9 @@ Logger.fsDriver_ = new FsDriverNode();
 
 const env = envFromArgs(process.argv);
 const profilePath = profileFromArgs(process.argv);
+const isDebugMode = !!process.argv && process.argv.indexOf('--debug') >= 0;
 
-const wrapper = new ElectronAppWrapper(electronApp, env, profilePath);
+const wrapper = new ElectronAppWrapper(electronApp, env, profilePath, isDebugMode);
 
 initBridge(wrapper);
 

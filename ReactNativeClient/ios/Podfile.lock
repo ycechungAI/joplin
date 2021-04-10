@@ -192,6 +192,8 @@ PODS:
     - React
   - react-native-document-picker (2.3.0):
     - React
+  - react-native-geolocation (2.0.2):
+    - React
   - react-native-image-picker (0.14.3):
     - React
   - react-native-image-resizer (1.0.0):
@@ -276,6 +278,7 @@ DEPENDENCIES:
   - React-jsinspector (from `../node_modules/react-native/ReactCommon/jsinspector`)
   - react-native-camera (from `../node_modules/react-native-camera`)
   - react-native-document-picker (from `../node_modules/react-native-document-picker`)
+  - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
   - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-image-resizer (from `../node_modules/react-native-image-resizer`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
@@ -340,6 +343,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-camera"
   react-native-document-picker:
     :path: "../node_modules/react-native-document-picker"
+  react-native-geolocation:
+    :path: "../node_modules/@react-native-community/geolocation"
   react-native-image-picker:
     :path: "../node_modules/react-native-image-picker"
   react-native-image-resizer:
@@ -393,11 +398,11 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   boost-for-react-native: 39c7adb57c4e60d6c5479dd8623128eb5b3f0f2c
-  DoubleConversion: 5805e889d232975c086db112ece9ed034df7a0b2
+  DoubleConversion: cde416483dac037923206447da6e1454df403714
   FBLazyVector: aaeaf388755e4f29cd74acbc9e3b8da6d807c37f
   FBReactNativeSpec: 118d0d177724c2d67f08a59136eb29ef5943ec75
   Folly: 30e7936e1c45c08d884aa59369ed951a8e68cf51
-  glog: 1f3da668190260b06b429bb211bfbee5cd790c28
+  glog: 40a13f7840415b9a77023fbcae0f1e6f43192af3
   RCTRequired: b153add4da6e7dbc44aebf93f3cf4fcae392ddf1
   RCTTypeSafety: 9aa1b91d7f9310fc6eadc3cf95126ffe818af320
   React: b6a59ef847b2b40bb6e0180a97d0ca716969ac78
@@ -409,6 +414,7 @@ SPEC CHECKSUMS:
   React-jsinspector: fa0ecc501688c3c4c34f28834a76302233e29dc0
   react-native-camera: ea85f74cf2e501d2a91a3da7092ecdac082f18df
   react-native-document-picker: 8508bfda34be6c24a2cbecbe515b15108658c183
+  react-native-geolocation: cbd9d6bd06bac411eed2671810f454d4908484a8
   react-native-image-picker: 3693786b3d5958c8f71deed66ec068b323565e0d
   react-native-image-resizer: aa1600566fd336a044daf9273dcec5033c1d41ca
   react-native-slider: b2f361499888302147205f17f6fffa921a7bda70
@@ -437,4 +443,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: c8797581a23c0ae9c6a4f471c2b19dda3644a8b2
 
-COCOAPODS: 1.8.4
+COCOAPODS: 1.9.3

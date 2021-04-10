@@ -9,8 +9,8 @@ const Note = require('lib/models/Note.js');
 const { NoteItem } = require('lib/components/note-item.js');
 const { BaseScreenComponent } = require('lib/components/base-screen.js');
 const { themeStyle } = require('lib/components/global-style.js');
-const SearchEngineUtils = require('lib/services/SearchEngineUtils');
 const DialogBox = require('react-native-dialogbox').default;
+const SearchEngineUtils = require('lib/services/searchengine/SearchEngineUtils');
 
 Icon.loadFont();
 
@@ -181,6 +181,7 @@ class SearchScreenComponent extends BaseScreenComponent {
 							onChangeText={text => this.searchTextInput_changeText(text)}
 							value={this.state.query}
 							selectionColor={theme.textSelectionColor}
+							keyboardAppearance={theme.keyboardAppearance}
 						/>
 						<TouchableHighlight onPress={() => this.clearButton_press()}>
 							<Icon name="md-close-circle" style={this.styles().clearIcon} />

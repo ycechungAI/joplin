@@ -1,10 +1,11 @@
 const { _ } = require('lib/locale');
 const { bridge } = require('electron').remote.require('./bridge');
 const InteropService = require('lib/services/InteropService');
+const CommandService = require('lib/services/CommandService').default;
 const Setting = require('lib/models/Setting');
 const Note = require('lib/models/Note.js');
-const Folder = require('lib/models/Folder.js');
 const { friendlySafeFilename } = require('lib/path-utils');
+const { time } = require('lib/time-utils.js');
 const md5 = require('md5');
 const url = require('url');
 const { shim } = require('lib/shim');
@@ -70,6 +71,11 @@ class InteropServiceHelper {
 								cleanup();
 							}
 						} else {
+							// TODO: it is crashing at this point :(
+							// Appears to be a Chromium bug: https://github.com/electron/electron/issues/19946
+							// Maybe can be fixed by doing everything from main process?
+							// i.e. creating a function `print()` that takes the `htmlFile` variable as input.
+
 							win.webContents.print(options, (success, reason) => {
 								// TODO: This is correct but broken in Electron 4. Need to upgrade to 5+
 								// It calls the callback right away with "false" even if the document hasn't be print yet.
@@ -103,31 +109,18 @@ class InteropServiceHelper {
 		return this.exportNoteTo_('printer', noteId, options);
 	}
 
-	static async defaultFilename(noteIds, fileExtension) {
-		if (!noteIds) {
-			return '';
+	static async defaultFilename(noteId, fileExtension) {
+		// Default filename is just the date
+		const date = time.formatMsToLocal(new Date().getTime(), time.dateFormat());
+		let filename = friendlySafeFilename(`${date}`, 100);
+
+		if (noteId) {
+			const note = await Note.load(noteId);
+			// In a rare case the passed note will be null, use the id for filename
+			filename = friendlySafeFilename(note ? note.title : noteId, 100);
 		}
 
-		const note = await Note.load(noteIds[0]);
-		// In a rare case the passed not will be null, use the id for filename
-		if (note === null) {
-			const filename = friendlySafeFilename(noteIds[0], 100);
-
-			return `${filename}.${fileExtension}`;
-		}
-		const folder = await Folder.load(note.parent_id);
-
-		const filename = friendlySafeFilename(note.title, 100);
-
-		// In a less rare case the folder will be null, just ignore it
-		if (folder === null) {
-			return `${filename}.${fileExtension}`;
-		}
-
-		const foldername = friendlySafeFilename(folder.title, 100);
-
-		// friendlySafeFilename assumes that the file extension is added after
-		return `${foldername} - ${filename}.${fileExtension}`;
+		return `${filename}.${fileExtension}`;
 	}
 
 	static async export(dispatch, module, options = null) {
@@ -136,9 +129,10 @@ class InteropServiceHelper {
 		let path = null;
 
 		if (module.target === 'file') {
+			const noteId = options.sourceNoteIds && options.sourceNoteIds.length ? options.sourceNoteIds[0] : null;
 			path = bridge().showSaveDialog({
 				filters: [{ name: module.description, extensions: module.fileExtensions }],
-				defaultPath: await this.defaultFilename(options.sourceNoteIds, module.fileExtensions[0]),
+				defaultPath: await this.defaultFilename(noteId, module.fileExtensions[0]),
 			});
 		} else {
 			path = bridge().showOpenDialog({
@@ -150,11 +144,7 @@ class InteropServiceHelper {
 
 		if (Array.isArray(path)) path = path[0];
 
-		dispatch({
-			type: 'WINDOW_COMMAND',
-			name: 'showModalMessage',
-			message: _('Exporting to "%s" as "%s" format. Please wait...', path, module.format),
-		});
+		CommandService.instance().execute('showModalMessage', { message: _('Exporting to "%s" as "%s" format. Please wait...', path, module.format) });
 
 		const exportOptions = {};
 		exportOptions.path = path;
@@ -174,10 +164,7 @@ class InteropServiceHelper {
 			bridge().showErrorMessageBox(_('Could not export notes: %s', error.message));
 		}
 
-		dispatch({
-			type: 'WINDOW_COMMAND',
-			name: 'hideModalMessage',
-		});
+		CommandService.instance().execute('hideModalMessage');
 	}
 
 }

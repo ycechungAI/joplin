@@ -21,7 +21,7 @@ Please check that your request has not already been posted on the forum or the [
 
 Avoid listing multiple requests in one topic. One topic per request makes it easier to track and discuss it.
 
-Finally, when submitting a pull request, don't forget to [test your code](#unit-tests).
+Finally, when submitting a pull request, don't forget to [test your code](#automated-tests).
 
 # Contributing to Joplin's translation
 
@@ -36,6 +36,7 @@ If you want to start contributing to the project's code, please follow these gui
 - Before adding a new feature, ask about it in the [Github Issue Tracker](https://github.com/laurent22/joplin/issues?utf8=%E2%9C%93&q=is%3Aissue) or the [Joplin Forum](https://discourse.joplinapp.org/), or check if existing discussions exist to make sure the new functionality is desired.
 - **Changes that will consist in more than 50 lines of code should be discussed the [Joplin Forum](https://discourse.joplinapp.org/)**, so that you don't spend too much time implementing something that might not be accepted.
 - All the applications share the same backend (database, synchronisation, settings, models, business logic, etc.) so if you change something in the backend in one app, makes sure it still work in the other apps. Usually it does, but keep this in mind.
+- Pull requests that make many changes using an automated tool, like for spell fixing, styling, etc. will not be accepted. An exception would be if the changes have been discussed in the forum and someone has agreed to review **and test** the pull request.
 
 Building the apps is relatively easy - please [see the build instructions](https://github.com/laurent22/joplin/blob/master/BUILD.md) for more details.
 
@@ -49,9 +50,9 @@ For changes made to the Desktop client that affect the user interface, refer to 
 
 ## Automated tests
 
-When submitting a pull request for a new feature or bug fixes, please add automated tests for your code whenever possible. Tests in Joplin are divided in **unit tests** and **feature tests**.
+When submitting a pull request for a new feature or a bug fix, please add automated tests for your code whenever possible. Tests in Joplin are divided into **unit tests** and **feature tests**.
 
-* **Unit tests** are used to tests models, services or utility classes - they are relatively low level. Unit tests should be prefixed with the type of class that is being tested - for example "models_Folder" or "services_SearchEngine".
+* **Unit tests** are used to test models, services or utility classes - they are relatively low level. Unit tests should be prefixed with the type of class that is being tested - for example "models_Folder" or "services_SearchEngine".
 
 * **Feature tests** on the other hand are to test higher level functionalities such as interactions with the GUI and how they affect the underlying model. Often these tests would dispatch Redux actions, and inspect how the application state has been changed. The feature tests should be prefixed with "feature_", for example "feature_TagList". There's a good explanation on what qualifies as a feature test in [this post](https://github.com/laurent22/joplin/pull/2819#issuecomment-603502230).
 

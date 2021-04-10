@@ -5,8 +5,7 @@ const { FoldersScreenUtils } = require('lib/folders-screen-utils.js');
 const Setting = require('lib/models/Setting.js');
 const { shim } = require('lib/shim.js');
 const MasterKey = require('lib/models/MasterKey');
-const Note = require('lib/models/Note');
-const { MarkupToHtml } = require('lib/joplin-renderer');
+const Folder = require('lib/models/Folder');
 const { _, setLocale } = require('lib/locale.js');
 const { Logger } = require('lib/logger.js');
 const fs = require('fs-extra');
@@ -21,15 +20,64 @@ const InteropService = require('lib/services/InteropService');
 const InteropServiceHelper = require('./InteropServiceHelper.js');
 const ResourceService = require('lib/services/ResourceService');
 const ClipperServer = require('lib/ClipperServer');
+const actionApi = require('lib/services/rest/actionApi.desktop').default;
 const ExternalEditWatcher = require('lib/services/ExternalEditWatcher');
+const ResourceEditWatcher = require('lib/services/ResourceEditWatcher/index').default;
 const { bridge } = require('electron').remote.require('./bridge');
 const { shell, webFrame, clipboard } = require('electron');
 const Menu = bridge().Menu;
 const PluginManager = require('lib/services/PluginManager');
 const RevisionService = require('lib/services/RevisionService');
 const MigrationService = require('lib/services/MigrationService');
+const CommandService = require('lib/services/CommandService').default;
+const KeymapService = require('lib/services/KeymapService.js').default;
 const TemplateUtils = require('lib/TemplateUtils');
 const CssUtils = require('lib/CssUtils');
+const resourceEditWatcherReducer = require('lib/services/ResourceEditWatcher/reducer').default;
+const versionInfo = require('lib/versionInfo').default;
+
+const commands = [
+	require('./gui/Header/commands/focusSearch'),
+	require('./gui/MainScreen/commands/editAlarm'),
+	require('./gui/MainScreen/commands/exportPdf'),
+	require('./gui/MainScreen/commands/hideModalMessage'),
+	require('./gui/MainScreen/commands/moveToFolder'),
+	require('./gui/MainScreen/commands/newNote'),
+	require('./gui/MainScreen/commands/newNotebook'),
+	require('./gui/MainScreen/commands/newTodo'),
+	require('./gui/MainScreen/commands/print'),
+	require('./gui/MainScreen/commands/renameFolder'),
+	require('./gui/MainScreen/commands/renameTag'),
+	require('./gui/MainScreen/commands/search'),
+	require('./gui/MainScreen/commands/selectTemplate'),
+	require('./gui/MainScreen/commands/setTags'),
+	require('./gui/MainScreen/commands/showModalMessage'),
+	require('./gui/MainScreen/commands/showNoteContentProperties'),
+	require('./gui/MainScreen/commands/showNoteProperties'),
+	require('./gui/MainScreen/commands/showShareNoteDialog'),
+	require('./gui/MainScreen/commands/toggleNoteList'),
+	require('./gui/MainScreen/commands/toggleSidebar'),
+	require('./gui/MainScreen/commands/toggleVisiblePanes'),
+	require('./gui/NoteEditor/commands/focusElementNoteBody'),
+	require('./gui/NoteEditor/commands/focusElementNoteTitle'),
+	require('./gui/NoteEditor/commands/showLocalSearch'),
+	require('./gui/NoteEditor/commands/showRevisions'),
+	require('./gui/NoteList/commands/focusElementNoteList'),
+	require('./gui/SideBar/commands/focusElementSideBar'),
+];
+
+// Commands that are not tied to any particular component.
+// The runtime for these commands can be loaded when the app starts.
+const globalCommands = [
+	require('./commands/focusElement'),
+	require('./commands/startExternalEditing'),
+	require('./commands/stopExternalEditing'),
+	require('lib/commands/synchronize'),
+	require('lib/commands/historyBackward'),
+	require('lib/commands/historyForward'),
+];
+
+const editorCommandDeclarations = require('./gui/NoteEditor/commands/editorCommandDeclarations').default;
 
 const pluginClasses = [
 	require('./plugins/GotoAnything.min'),
@@ -43,7 +91,6 @@ const appDefaultState = Object.assign({}, defaultState, {
 	},
 	navHistory: [],
 	fileToImport: null,
-	windowCommand: null,
 	noteVisiblePanes: ['editor', 'viewer'],
 	sidebarVisibility: true,
 	noteListVisibility: true,
@@ -58,6 +105,16 @@ class Application extends BaseApplication {
 	constructor() {
 		super();
 		this.lastMenuScreen_ = null;
+
+		this.bridge_nativeThemeUpdated = this.bridge_nativeThemeUpdated.bind(this);
+
+		this.commandService_commandsEnabledStateChange = this.commandService_commandsEnabledStateChange.bind(this);
+		CommandService.instance().on('commandsEnabledStateChange', this.commandService_commandsEnabledStateChange);
+	}
+
+	commandService_commandsEnabledStateChange() {
+		// TODO: only update if command is used in menu?
+		this.updateMenuItemStates();
 	}
 
 	hasGui() {
@@ -111,16 +168,6 @@ class Application extends BaseApplication {
 				newState.windowContentSize = action.size;
 				break;
 
-			case 'WINDOW_COMMAND':
-
-				{
-					newState = Object.assign({}, state);
-					const command = Object.assign({}, action);
-					delete command.type;
-					newState.windowCommand = command.name ? command : null;
-				}
-				break;
-
 			case 'NOTE_VISIBLE_PANES_TOGGLE':
 
 				{
@@ -134,8 +181,6 @@ class Application extends BaseApplication {
 							paneOptions = ['editor', 'both'];
 						} else if (state.settings.layoutButtonSequence === Setting.LAYOUT_VIEWER_SPLIT) {
 							paneOptions = ['viewer', 'both'];
-						} else if (state.settings.layoutButtonSequence === Setting.LAYOUT_SPLIT_WYSIWYG) {
-							paneOptions = ['both', 'wysiwyg'];
 						} else {
 							paneOptions = ['editor', 'viewer', 'both'];
 						}
@@ -238,6 +283,10 @@ class Application extends BaseApplication {
 			throw error;
 		}
 
+		newState = resourceEditWatcherReducer(newState, action);
+
+		CommandService.instance().scheduleMapStateToProps(newState);
+
 		return super.reducer(newState, action);
 	}
 
@@ -293,16 +342,29 @@ class Application extends BaseApplication {
 			Setting.setValue('noteListVisibility', newState.noteListVisibility);
 		}
 
-		if (action.type.indexOf('NOTE_SELECT') === 0 || action.type.indexOf('FOLDER_SELECT') === 0) {
-			this.updateMenuItemStates(newState);
-		}
-
 		if (['NOTE_DEVTOOLS_TOGGLE', 'NOTE_DEVTOOLS_SET'].indexOf(action.type) >= 0) {
 			this.toggleDevTools(newState.devToolsVisible);
-			this.updateMenuItemStates(newState);
+		}
+
+		if (action.type === 'FOLDER_AND_NOTE_SELECT') {
+			await Folder.expandTree(newState.folders, action.folderId);
+		}
+
+		if (this.hasGui() && ((action.type == 'SETTING_UPDATE_ONE' && ['themeAutoDetect', 'theme', 'preferredLightTheme', 'preferredDarkTheme'].includes(action.key)) || action.type == 'SETTING_UPDATE_ALL')) {
+			this.handleThemeAutoDetect();
 		}
 
 		return result;
+	}
+
+	handleThemeAutoDetect() {
+		if (!Setting.value('themeAutoDetect')) return;
+
+		if (bridge().shouldUseDarkColors()) {
+			Setting.setValue('theme', Setting.value('preferredDarkTheme'));
+		} else {
+			Setting.setValue('theme', Setting.value('preferredLightTheme'));
+		}
 	}
 
 	async refreshMenu() {
@@ -311,16 +373,11 @@ class Application extends BaseApplication {
 		await this.updateMenu(screen);
 	}
 
-	focusElement_(target) {
-		this.dispatch({
-			type: 'WINDOW_COMMAND',
-			name: 'focusElement',
-			target: target,
-		});
-	}
-
 	async updateMenu(screen) {
 		if (this.lastMenuScreen_ === screen) return;
+
+		const cmdService = CommandService.instance();
+		const keymapService = KeymapService.instance();
 
 		const sortNoteFolderItems = (type) => {
 			const sortItems = [];
@@ -342,6 +399,7 @@ class Application extends BaseApplication {
 			sortItems.push({ type: 'separator' });
 
 			sortItems.push({
+				id: `sort:${type}:reverse`,
 				label: Setting.settingMetadata(`${type}.sortOrder.reverse`).label(),
 				type: 'checkbox',
 				checked: Setting.value(`${type}.sortOrder.reverse`),
@@ -357,31 +415,12 @@ class Application extends BaseApplication {
 		const sortNoteItems = sortNoteFolderItems('notes');
 		const sortFolderItems = sortNoteFolderItems('folders');
 
-		const focusItems = [];
-
-		focusItems.push({
-			label: _('Sidebar'),
-			click: () => { this.focusElement_('sideBar'); },
-			accelerator: 'CommandOrControl+Shift+S',
-		});
-
-		focusItems.push({
-			label: _('Note list'),
-			click: () => { this.focusElement_('noteList'); },
-			accelerator: 'CommandOrControl+Shift+L',
-		});
-
-		focusItems.push({
-			label: _('Note title'),
-			click: () => { this.focusElement_('noteTitle'); },
-			accelerator: 'CommandOrControl+Shift+N',
-		});
-
-		focusItems.push({
-			label: _('Note body'),
-			click: () => { this.focusElement_('noteBody'); },
-			accelerator: 'CommandOrControl+Shift+B',
-		});
+		const focusItems = [
+			cmdService.commandToMenuItem('focusElementSideBar'),
+			cmdService.commandToMenuItem('focusElementNoteList'),
+			cmdService.commandToMenuItem('focusElementNoteTitle'),
+			cmdService.commandToMenuItem('focusElementNoteBody'),
+		];
 
 		let toolsItems = [];
 		const importItems = [];
@@ -427,11 +466,7 @@ class Application extends BaseApplication {
 
 							if (Array.isArray(path)) path = path[0];
 
-							this.dispatch({
-								type: 'WINDOW_COMMAND',
-								name: 'showModalMessage',
-								message: _('Importing from "%s" as "%s" format. Please wait...', path, module.format),
-							});
+							cmdService.execute('showModalMessage', { message: _('Importing from "%s" as "%s" format. Please wait...', path, module.format) });
 
 							const importOptions = {
 								path,
@@ -439,9 +474,9 @@ class Application extends BaseApplication {
 								modulePath: module.path,
 								onError: console.warn,
 								destinationFolderId:
-								!module.isNoteArchive && moduleSource === 'file'
-									? selectedFolderId
-									: null,
+									!module.isNoteArchive && moduleSource === 'file'
+										? selectedFolderId
+										: null,
 							};
 
 							const service = new InteropService();
@@ -452,28 +487,16 @@ class Application extends BaseApplication {
 								bridge().showErrorMessageBox(error.message);
 							}
 
-							this.dispatch({
-								type: 'WINDOW_COMMAND',
-								name: 'hideModalMessage',
-							});
+							cmdService.execute('hideModalMessage');
 						},
 					});
 				}
 			}
 		}
 
-		exportItems.push({
-			label: `PDF - ${_('PDF File')}`,
-			screens: ['Main'],
-			click: async () => {
-				const selectedNoteIds = this.store().getState().selectedNoteIds;
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'exportPdf',
-					noteIds: selectedNoteIds,
-				});
-			},
-		});
+		exportItems.push(
+			cmdService.commandToMenuItem('exportPdf')
+		);
 
 		// We need a dummy entry, otherwise the ternary operator to show a
 		// menu item only on a specific OS does not work.
@@ -492,64 +515,10 @@ class Application extends BaseApplication {
 			},
 		};
 
-		const newNoteItem = {
-			label: _('New note'),
-			accelerator: 'CommandOrControl+N',
-			screens: ['Main'],
-			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'newNote',
-				});
-			},
-		};
-
-		const newTodoItem = {
-			label: _('New to-do'),
-			accelerator: 'CommandOrControl+T',
-			screens: ['Main'],
-			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'newTodo',
-				});
-			},
-		};
-
-		const newNotebookItem = {
-			label: _('New notebook'),
-			screens: ['Main'],
-			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'newNotebook',
-				});
-			},
-		};
-
-		const newSubNotebookItem = {
-			label: _('New sub-notebook'),
-			screens: ['Main'],
-			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'newSubNotebook',
-					activeFolderId: Setting.value('activeFolderId'),
-				});
-			},
-		};
-
-		const printItem = {
-			label: _('Print'),
-			accelerator: 'CommandOrControl+P',
-			screens: ['Main'],
-			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'print',
-				});
-			},
-		};
+		const newNoteItem = cmdService.commandToMenuItem('newNote');
+		const newTodoItem = cmdService.commandToMenuItem('newTodo');
+		const newNotebookItem = cmdService.commandToMenuItem('newNotebook');
+		const printItem = cmdService.commandToMenuItem('print');
 
 		toolsItemsFirst.push(syncStatusItem, {
 			type: 'separator',
@@ -562,31 +531,20 @@ class Application extends BaseApplication {
 			label: _('Create note from template'),
 			visible: templateDirExists,
 			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'selectTemplate',
-					noteType: 'note',
-				});
+				cmdService.execute('selectTemplate', { noteType: 'note' });
 			},
 		}, {
 			label: _('Create to-do from template'),
 			visible: templateDirExists,
 			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'selectTemplate',
-					noteType: 'todo',
-				});
+				cmdService.execute('selectTemplate', { noteType: 'todo' });
 			},
 		}, {
 			label: _('Insert template'),
 			visible: templateDirExists,
-			accelerator: 'CommandOrControl+Alt+I',
+			accelerator: keymapService.getAccelerator('insertTemplate'),
 			click: () => {
-				this.dispatch({
-					type: 'WINDOW_COMMAND',
-					name: 'selectTemplate',
-				});
+				cmdService.execute('selectTemplate');
 			},
 		}, {
 			label: _('Open template directory'),
@@ -611,7 +569,7 @@ class Application extends BaseApplication {
 		const toolsItemsWindowsLinux = toolsItemsFirst.concat([{
 			label: _('Options'),
 			visible: !shim.isMac(),
-			accelerator: 'CommandOrControl+,',
+			accelerator: shim.isMac() ? null : keymapService.getAccelerator('config'),
 			click: () => {
 				this.dispatch({
 					type: 'NAV_GO',
@@ -641,36 +599,17 @@ class Application extends BaseApplication {
 		}
 
 		function _showAbout() {
-			const p = packageInfo;
-			let gitInfo = '';
-			if ('git' in p) {
-				gitInfo = _('Revision: %s (%s)', p.git.hash, p.git.branch);
-			}
-			const copyrightText = 'Copyright © 2016-YYYY Laurent Cozic';
-			const message = [
-				p.description,
-				'',
-				copyrightText.replace('YYYY', new Date().getFullYear()),
-				_('%s %s (%s, %s)', p.name, p.version, Setting.value('env'), process.platform),
-				'',
-				_('Client ID: %s', Setting.value('clientId')),
-				_('Sync Version: %s', Setting.value('syncVersion')),
-				_('Profile Version: %s', reg.db().version()),
-			];
-			if (gitInfo) {
-				message.push(`\n${gitInfo}`);
-				console.info(gitInfo);
-			}
-			const text = message.join('\n');
+			const v = versionInfo(packageInfo);
 
-			const copyToClipboard = bridge().showMessageBox(text, {
+			const copyToClipboard = bridge().showMessageBox(v.message, {
 				icon: `${bridge().electronApp().buildDir()}/icons/128x128.png`,
 				buttons: [_('Copy'), _('OK')],
 				cancelId: 1,
 				defaultId: 1,
 			});
+
 			if (copyToClipboard === 0) {
-				clipboard.writeText(message.splice(3).join('\n'));
+				clipboard.writeText(v.message);
 			}
 		}
 
@@ -692,7 +631,7 @@ class Application extends BaseApplication {
 			}, {
 				label: _('Preferences...'),
 				visible: shim.isMac() ? true : false,
-				accelerator: 'CommandOrControl+,',
+				accelerator: shim.isMac() ? keymapService.getAccelerator('config') : null,
 				click: () => {
 					this.dispatch({
 						type: 'NAV_GO',
@@ -709,8 +648,7 @@ class Application extends BaseApplication {
 			},
 			shim.isMac() ? noItem : newNoteItem,
 			shim.isMac() ? noItem : newTodoItem,
-			shim.isMac() ? noItem : newNotebookItem,
-			shim.isMac() ? noItem : newSubNotebookItem, {
+			shim.isMac() ? noItem : newNotebookItem, {
 				type: 'separator',
 				visible: shim.isMac() ? false : true,
 			}, {
@@ -730,17 +668,11 @@ class Application extends BaseApplication {
 				submenu: exportItems,
 			}, {
 				type: 'separator',
-			}, {
-				label: _('Synchronise'),
-				accelerator: 'CommandOrControl+S',
-				screens: ['Main'],
-				click: async () => {
-					this.dispatch({
-						type: 'WINDOW_COMMAND',
-						name: 'synchronize',
-					});
-				},
-			}, shim.isMac() ? syncStatusItem : noItem, {
+			},
+
+			cmdService.commandToMenuItem('synchronize'),
+
+			shim.isMac() ? syncStatusItem : noItem, {
 				type: 'separator',
 			}, shim.isMac() ? noItem : printItem, {
 				type: 'separator',
@@ -748,13 +680,13 @@ class Application extends BaseApplication {
 			}, {
 				label: _('Hide %s', 'Joplin'),
 				platforms: ['darwin'],
-				accelerator: 'CommandOrControl+H',
+				accelerator: shim.isMac() ? keymapService.getAccelerator('hideApp') : null,
 				click: () => { bridge().electronApp().hide(); },
 			}, {
 				type: 'separator',
 			}, {
 				label: _('Quit'),
-				accelerator: 'CommandOrControl+Q',
+				accelerator: keymapService.getAccelerator('quit'),
 				click: () => { bridge().electronApp().quit(); },
 			}],
 		};
@@ -765,13 +697,12 @@ class Application extends BaseApplication {
 			submenu: [
 				newNoteItem,
 				newTodoItem,
-				newNotebookItem,
-				newSubNotebookItem, {
+				newNotebookItem, {
 					label: _('Close Window'),
 					platforms: ['darwin'],
-					accelerator: 'Command+W',
+					accelerator: shim.isMac() ? keymapService.getAccelerator('closeWindow') : null,
 					selector: 'performClose:',
-				},  {
+				}, {
 					type: 'separator',
 				}, {
 					label: _('Templates'),
@@ -802,247 +733,127 @@ class Application extends BaseApplication {
 			},
 		}));
 
+		const separator = () => {
+			return {
+				type: 'separator',
+				screens: ['Main'],
+			};
+		};
+
 		const rootMenus = {
 			edit: {
 				id: 'edit',
 				label: _('&Edit'),
-				submenu: [{
-					id: 'edit:copy',
-					label: _('Copy'),
-					role: 'copy',
-					accelerator: 'CommandOrControl+C',
-				}, {
-					id: 'edit:cut',
-					label: _('Cut'),
-					role: 'cut',
-					accelerator: 'CommandOrControl+X',
-				}, {
-					id: 'edit:paste',
-					label: _('Paste'),
-					role: 'paste',
-					accelerator: 'CommandOrControl+V',
-				}, {
-					id: 'edit:selectAll',
-					label: _('Select all'),
-					role: 'selectall',
-					accelerator: 'CommandOrControl+A',
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					id: 'edit:bold',
-					label: _('Bold'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+B',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'textBold',
-						});
-					},
-				}, {
-					id: 'edit:italic',
-					label: _('Italic'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+I',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'textItalic',
-						});
-					},
-				}, {
-					id: 'edit:link',
-					label: _('Link'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+K',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'textLink',
-						});
-					},
-				}, {
-					id: 'edit:code',
-					label: _('Code'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+`',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'textCode',
-						});
-					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					id: 'edit:insertDateTime',
-					label: _('Insert Date Time'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+Shift+T',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'insertDateTime',
-						});
-					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					id: 'edit:commandStartExternalEditing',
-					label: _('Edit in external editor'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+E',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'commandStartExternalEditing',
-						});
-					},
-				}, {
-					id: 'edit:setTags',
-					label: _('Tags'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+Alt+T',
-					click: () => {
-						const selectedNoteIds = this.store().getState().selectedNoteIds;
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'setTags',
-							noteIds: selectedNoteIds,
-						});
-					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					id: 'edit:focusSearch',
-					label: _('Search in all the notes'),
-					screens: ['Main'],
-					accelerator: shim.isMac() ? 'Shift+Command+F' : 'F6',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'focusSearch',
-						});
-					},
-				}, {
-					id: 'edit:showLocalSearch',
-					label: _('Search in current note'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+F',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'showLocalSearch',
-						});
-					},
-				}],
+				submenu: [
+					cmdService.commandToMenuItem('textCopy'),
+					cmdService.commandToMenuItem('textCut'),
+					cmdService.commandToMenuItem('textPaste'),
+					cmdService.commandToMenuItem('textSelectAll'),
+					separator(),
+					cmdService.commandToMenuItem('textBold'),
+					cmdService.commandToMenuItem('textItalic'),
+					cmdService.commandToMenuItem('textLink'),
+					cmdService.commandToMenuItem('textCode'),
+					separator(),
+					cmdService.commandToMenuItem('insertDateTime'),
+					cmdService.commandToMenuItem('attachFile'),
+					separator(),
+					cmdService.commandToMenuItem('focusSearch'),
+					cmdService.commandToMenuItem('showLocalSearch'),
+				],
 			},
 			view: {
 				label: _('&View'),
-				submenu: [{
-					label: _('Toggle sidebar'),
-					screens: ['Main'],
-					accelerator: shim.isMac() ? 'Option+Command+S' : 'F10',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'toggleSidebar',
-						});
+				submenu: [
+					CommandService.instance().commandToMenuItem('toggleSidebar'),
+					CommandService.instance().commandToMenuItem('toggleNoteList'),
+					CommandService.instance().commandToMenuItem('toggleVisiblePanes'),
+					{
+						label: _('Layout button sequence'),
+						screens: ['Main'],
+						submenu: layoutButtonSequenceOptions,
 					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					label: _('Layout button sequence'),
-					screens: ['Main'],
-					submenu: layoutButtonSequenceOptions,
-				}, {
-					label: _('Toggle note list'),
-					screens: ['Main'],
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'toggleNoteList',
-						});
+					separator(),
+					{
+						label: Setting.settingMetadata('notes.sortOrder.field').label(),
+						screens: ['Main'],
+						submenu: sortNoteItems,
+					}, {
+						label: Setting.settingMetadata('folders.sortOrder.field').label(),
+						screens: ['Main'],
+						submenu: sortFolderItems,
+					}, {
+						label: Setting.settingMetadata('showNoteCounts').label(),
+						type: 'checkbox',
+						checked: Setting.value('showNoteCounts'),
+						screens: ['Main'],
+						click: () => {
+							Setting.setValue('showNoteCounts', !Setting.value('showNoteCounts'));
+						},
+					}, {
+						label: Setting.settingMetadata('uncompletedTodosOnTop').label(),
+						type: 'checkbox',
+						checked: Setting.value('uncompletedTodosOnTop'),
+						screens: ['Main'],
+						click: () => {
+							Setting.setValue('uncompletedTodosOnTop', !Setting.value('uncompletedTodosOnTop'));
+						},
+					}, {
+						label: Setting.settingMetadata('showCompletedTodos').label(),
+						type: 'checkbox',
+						checked: Setting.value('showCompletedTodos'),
+						screens: ['Main'],
+						click: () => {
+							Setting.setValue('showCompletedTodos', !Setting.value('showCompletedTodos'));
+						},
 					},
-				}, {
-					label: _('Toggle editor layout'),
-					screens: ['Main'],
-					accelerator: 'CommandOrControl+L',
-					click: () => {
-						this.dispatch({
-							type: 'WINDOW_COMMAND',
-							name: 'toggleVisiblePanes',
-						});
+					separator(),
+					{
+						label: _('Focus'),
+						screens: ['Main'],
+						submenu: focusItems,
 					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					label: Setting.settingMetadata('notes.sortOrder.field').label(),
-					screens: ['Main'],
-					submenu: sortNoteItems,
-				}, {
-					label: Setting.settingMetadata('folders.sortOrder.field').label(),
-					screens: ['Main'],
-					submenu: sortFolderItems,
-				}, {
-					label: Setting.settingMetadata('showNoteCounts').label(),
-					type: 'checkbox',
-					checked: Setting.value('showNoteCounts'),
-					screens: ['Main'],
-					click: () => {
-						Setting.setValue('showNoteCounts', !Setting.value('showNoteCounts'));
-					},
-				}, {
-					label: Setting.settingMetadata('uncompletedTodosOnTop').label(),
-					type: 'checkbox',
-					checked: Setting.value('uncompletedTodosOnTop'),
-					screens: ['Main'],
-					click: () => {
-						Setting.setValue('uncompletedTodosOnTop', !Setting.value('uncompletedTodosOnTop'));
-					},
-				}, {
-					label: Setting.settingMetadata('showCompletedTodos').label(),
-					type: 'checkbox',
-					checked: Setting.value('showCompletedTodos'),
-					screens: ['Main'],
-					click: () => {
-						Setting.setValue('showCompletedTodos', !Setting.value('showCompletedTodos'));
-					},
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					label: _('Focus'),
-					screens: ['Main'],
-					submenu: focusItems,
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
-					label: _('Actual Size'),
-					click: () => {
-						Setting.setValue('windowContentZoomFactor', 100);
-					},
-					accelerator: 'CommandOrControl+0',
-				}, {
-					label: _('Zoom In'),
-					click: () => {
-						Setting.incValue('windowContentZoomFactor', 10);
-					},
-					accelerator: 'CommandOrControl+=',
-				}, {
-					label: _('Zoom Out'),
-					click: () => {
-						Setting.incValue('windowContentZoomFactor', -10);
-					},
-					accelerator: 'CommandOrControl+-',
-				}],
+					separator(),
+					{
+						label: _('Actual Size'),
+						click: () => {
+							Setting.setValue('windowContentZoomFactor', 100);
+						},
+						accelerator: 'CommandOrControl+0',
+					}, {
+					// There are 2 shortcuts for the action 'zoom in', mainly to increase the user experience.
+					// Most applications handle this the same way. These applications indicate Ctrl +, but actually mean Ctrl =.
+					// In fact they allow both: + and =. On the English keyboard layout - and = are used without the shift key.
+					// So to use Ctrl + would mean to use the shift key, but this is not the case in any of the apps that show Ctrl +.
+					// Additionally it allows the use of the plus key on the numpad.
+						label: _('Zoom In'),
+						click: () => {
+							Setting.incValue('windowContentZoomFactor', 10);
+						},
+						accelerator: 'CommandOrControl+Plus',
+					}, {
+						label: _('Zoom In'),
+						visible: false,
+						click: () => {
+							Setting.incValue('windowContentZoomFactor', 10);
+						},
+						accelerator: 'CommandOrControl+=',
+					}, {
+						label: _('Zoom Out'),
+						click: () => {
+							Setting.incValue('windowContentZoomFactor', -10);
+						},
+						accelerator: 'CommandOrControl+-',
+					}],
+			},
+			note: {
+				label: _('&Note'),
+				submenu: [
+					CommandService.instance().commandToMenuItem('startExternalEditing'),
+					CommandService.instance().commandToMenuItem('setTags'),
+					separator(),
+					CommandService.instance().commandToMenuItem('showNoteContentProperties'),
+				],
 			},
 			tools: {
 				label: _('&Tools'),
@@ -1050,9 +861,10 @@ class Application extends BaseApplication {
 			},
 			help: {
 				label: _('&Help'),
+				role: 'help', // Makes it add the "Search" field on macOS
 				submenu: [{
 					label: _('Website and documentation'),
-					accelerator: 'F1',
+					accelerator: keymapService.getAccelerator('help'),
 					click() { bridge().openExternal('https://joplinapp.org'); },
 				}, {
 					label: _('Joplin Forum'),
@@ -1064,14 +876,11 @@ class Application extends BaseApplication {
 					label: _('Check for updates...'),
 					visible: shim.isMac() ? false : true,
 					click: () => _checkForUpdates(this),
-				}, {
-					type: 'separator',
-					screens: ['Main'],
-				}, {
+				},
+				separator(),
+				{
 					id: 'help:toggleDevTools',
-					type: 'checkbox',
 					label: _('Toggle development tools'),
-					visible: true,
 					click: () => {
 						this.dispatch({
 							type: 'NOTE_DEVTOOLS_TOGGLE',
@@ -1124,6 +933,7 @@ class Application extends BaseApplication {
 			rootMenus.file,
 			rootMenus.edit,
 			rootMenus.view,
+			rootMenus.note,
 			rootMenus.tools,
 			rootMenus.help,
 		];
@@ -1182,17 +992,26 @@ class Application extends BaseApplication {
 
 		if (!state) state = this.store().getState();
 
-		const selectedNoteIds = state.selectedNoteIds;
-		const note = selectedNoteIds.length === 1 ? await Note.load(selectedNoteIds[0]) : null;
+		const menuEnabledState = CommandService.instance().commandsEnabledState(this.previousMenuEnabledState);
+		this.previousMenuEnabledState = menuEnabledState;
 
-		for (const itemId of ['copy', 'paste', 'cut', 'selectAll', 'bold', 'italic', 'link', 'code', 'insertDateTime', 'commandStartExternalEditing', 'showLocalSearch']) {
-			const menuItem = Menu.getApplicationMenu().getMenuItemById(`edit:${itemId}`);
+		const menu = Menu.getApplicationMenu();
+
+		for (const itemId in menuEnabledState) {
+			const menuItem = menu.getMenuItemById(itemId);
 			if (!menuItem) continue;
-			menuItem.enabled = !!note && note.markup_language === MarkupToHtml.MARKUP_LANGUAGE_MARKDOWN;
+			menuItem.enabled = menuEnabledState[itemId];
 		}
 
-		const menuItem = Menu.getApplicationMenu().getMenuItemById('help:toggleDevTools');
-		menuItem.checked = state.devToolsVisible;
+		const sortNoteReverseItem = menu.getMenuItemById('sort:notes:reverse');
+		if (sortNoteReverseItem) sortNoteReverseItem.enabled = state.settings['notes.sortOrder.field'] !== 'order';
+
+		// const devToolsMenuItem = menu.getMenuItemById('help:toggleDevTools');
+		// devToolsMenuItem.checked = state.devToolsVisible;
+	}
+
+	bridge_nativeThemeUpdated() {
+		this.handleThemeAutoDetect();
 	}
 
 	updateTray() {
@@ -1220,10 +1039,12 @@ class Application extends BaseApplication {
 		// The '*' and '!important' parts are necessary to make sure Russian text is displayed properly
 		// https://github.com/laurent22/joplin/issues/155
 
-		const css = `.ace_editor * { font-family: ${fontFamilies.join(', ')} !important; }`;
+		const css = `.CodeMirror * { font-family: ${fontFamilies.join(', ')} !important; }`;
+		const ace_css = `.ace_editor * { font-family: ${fontFamilies.join(', ')} !important; }`;
 		const styleTag = document.createElement('style');
 		styleTag.type = 'text/css';
 		styleTag.appendChild(document.createTextNode(css));
+		styleTag.appendChild(document.createTextNode(ace_css));
 		document.head.appendChild(styleTag);
 	}
 
@@ -1244,39 +1065,6 @@ class Application extends BaseApplication {
 		return cssString;
 	}
 
-	// async createManyNotes() {
-	// 	return;
-	// 	const folderIds = [];
-
-	// 	const randomFolderId = (folderIds) => {
-	// 		if (!folderIds.length) return '';
-	// 		const idx = Math.floor(Math.random() * folderIds.length);
-	// 		if (idx > folderIds.length - 1) throw new Error('Invalid index ' + idx + ' / ' + folderIds.length);
-	// 		return folderIds[idx];
-	// 	}
-
-	// 	let rootFolderCount = 0;
-	// 	let folderCount = 100;
-
-	// 	for (let i = 0; i < folderCount; i++) {
-	// 		let parentId = '';
-
-	// 		if (Math.random() >= 0.9 || rootFolderCount >= folderCount / 10) {
-	// 			parentId = randomFolderId(folderIds);
-	// 		} else {
-	// 			rootFolderCount++;
-	// 		}
-
-	// 		const folder = await Folder.save({ title: 'folder' + i, parent_id: parentId });
-	// 		folderIds.push(folder.id);
-	// 	}
-
-	// 	for (let i = 0; i < 10000; i++) {
-	// 		const parentId = randomFolderId(folderIds);
-	// 		Note.save({ title: 'note' + i, parent_id: parentId });
-	// 	}
-	// }
-
 	async start(argv) {
 		const electronIsDev = require('electron-is-dev');
 
@@ -1286,10 +1074,29 @@ class Application extends BaseApplication {
 
 		argv = await super.start(argv);
 
-		// Loads app-wide styles. (Markdown preview-specific styles loaded in app.js)
+		await this.applySettingsSideEffects();
+
+		if (Setting.value('sync.upgradeState') === Setting.SYNC_UPGRADE_STATE_MUST_DO) {
+			reg.logger().info('app.start: doing upgradeSyncTarget action');
+			bridge().window().show();
+			return { action: 'upgradeSyncTarget' };
+		}
+
+		reg.logger().info('app.start: doing regular boot');
+
 		const dir = Setting.value('profileDir');
+
+		// Loads app-wide styles. (Markdown preview-specific styles loaded in app.js)
 		const filename = Setting.custom_css_files.JOPLIN_APP;
 		await CssUtils.injectCustomStyles(`${dir}/${filename}`);
+
+		const keymapService = KeymapService.instance();
+
+		try {
+			await KeymapService.instance().loadKeymap(`${dir}/keymap-desktop.json`);
+		} catch (err) {
+			bridge().showErrorMessageBox(err.message);
+		}
 
 		AlarmService.setDriver(new AlarmServiceDriverNode({ appName: packageInfo.build.appId }));
 		AlarmService.setLogger(reg.logger());
@@ -1304,9 +1111,24 @@ class Application extends BaseApplication {
 		PluginManager.instance().setLogger(reg.logger());
 		PluginManager.instance().register(pluginClasses);
 
-		this.updateMenu('Main');
-
 		this.initRedux();
+
+		CommandService.instance().initialize(this.store(), keymapService);
+
+		for (const command of commands) {
+			CommandService.instance().registerDeclaration(command.declaration);
+		}
+
+		for (const command of globalCommands) {
+			CommandService.instance().registerDeclaration(command.declaration);
+			CommandService.instance().registerRuntime(command.declaration.name, command.runtime());
+		}
+
+		for (const declaration of editorCommandDeclarations) {
+			CommandService.instance().registerDeclaration(declaration);
+		}
+
+		this.updateMenu('Main');
 
 		// Since the settings need to be loaded before the store is created, it will never
 		// receive the SETTING_UPDATE_ALL even, which mean state.settings will not be
@@ -1403,6 +1225,7 @@ class Application extends BaseApplication {
 		clipperLogger.addTarget('file', { path: `${Setting.value('profileDir')}/log-clipper.txt` });
 		clipperLogger.addTarget('console');
 
+		ClipperServer.instance().initialize(actionApi);
 		ClipperServer.instance().setLogger(clipperLogger);
 		ClipperServer.instance().setDispatch(this.store().dispatch);
 
@@ -1413,14 +1236,23 @@ class Application extends BaseApplication {
 		ExternalEditWatcher.instance().setLogger(reg.logger());
 		ExternalEditWatcher.instance().dispatch = this.store().dispatch;
 
+		ResourceEditWatcher.instance().initialize(reg.logger(), (action) => { this.store().dispatch(action); });
+
 		RevisionService.instance().runInBackground();
 
 		this.updateMenuItemStates();
 
 		// Make it available to the console window - useful to call revisionService.collectRevisions()
-		window.revisionService = RevisionService.instance();
-		window.migrationService = MigrationService.instance();
-		window.decryptionWorker = DecryptionWorker.instance();
+		window.joplin = () => {
+			return {
+				revisionService: RevisionService.instance(),
+				migrationService: MigrationService.instance(),
+				decryptionWorker: DecryptionWorker.instance(),
+				bridge: bridge(),
+			};
+		};
+
+		bridge().addEventListener('nativeThemeUpdated', this.bridge_nativeThemeUpdated);
 	}
 
 }

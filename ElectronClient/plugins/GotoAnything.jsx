@@ -1,17 +1,20 @@
 const React = require('react');
 const { connect } = require('react-redux');
 const { _ } = require('lib/locale.js');
-const { themeStyle } = require('../theme.js');
-const SearchEngine = require('lib/services/SearchEngine');
+const { themeStyle } = require('lib/theme');
+const CommandService = require('lib/services/CommandService').default;
+const SearchEngine = require('lib/services/searchengine/SearchEngine');
 const BaseModel = require('lib/BaseModel');
 const Tag = require('lib/models/Tag');
 const Folder = require('lib/models/Folder');
 const Note = require('lib/models/Note');
 const { ItemList } = require('../gui/ItemList.min');
 const HelpButton = require('../gui/HelpButton.min');
-const { surroundKeywords, nextWhitespaceIndex } = require('lib/string-utils.js');
+const { surroundKeywords, nextWhitespaceIndex, removeDiacritics } = require('lib/string-utils.js');
 const { mergeOverlappingIntervals } = require('lib/ArrayUtils.js');
 const PLUGIN_NAME = 'gotoAnything';
+const markupLanguageUtils = require('lib/markupLanguageUtils');
+const KeymapService = require('lib/services/KeymapService.js').default;
 
 class GotoAnything {
 
@@ -153,12 +156,12 @@ class Dialog extends React.PureComponent {
 	}
 
 	scheduleListUpdate() {
-		if (this.listUpdateIID_) return;
+		if (this.listUpdateIID_) clearTimeout(this.listUpdateIID_);
 
 		this.listUpdateIID_ = setTimeout(async () => {
 			await this.updateList();
 			this.listUpdateIID_ = null;
-		}, 10);
+		}, 100);
 	}
 
 	makeSearchQuery(query) {
@@ -177,6 +180,12 @@ class Dialog extends React.PureComponent {
 	keywords(searchQuery) {
 		const parsedQuery = SearchEngine.instance().parseQuery(searchQuery);
 		return SearchEngine.instance().allParsedQueryTerms(parsedQuery);
+	}
+
+	markupToHtml() {
+		if (this.markupToHtml_) return this.markupToHtml_;
+		this.markupToHtml_ = markupLanguageUtils.newMarkupToHtml();
+		return this.markupToHtml_;
 	}
 
 	async updateList() {
@@ -210,7 +219,7 @@ class Dialog extends React.PureComponent {
 
 				resultsInBody = !!results.find(row => row.fields.includes('body'));
 
-				if (!resultsInBody) {
+				if (!resultsInBody || this.state.query.length <= 1) {
 					for (let i = 0; i < results.length; i++) {
 						const row = results[i];
 						const path = Folder.folderPathString(this.props.folders, row.parent_id);
@@ -219,8 +228,8 @@ class Dialog extends React.PureComponent {
 				} else {
 					const limit = 20;
 					const searchKeywords = this.keywords(searchQuery);
-					const notes = await Note.byIds(results.map(result => result.id).slice(0, limit), { fields: ['id', 'body'] });
-					const notesById = notes.reduce((obj, { id, body }) => ((obj[[id]] = body), obj), {});
+					const notes = await Note.byIds(results.map(result => result.id).slice(0, limit), { fields: ['id', 'body', 'markup_language', 'is_todo', 'todo_completed'] });
+					const notesById = notes.reduce((obj, { id, body, markup_language }) => ((obj[[id]] = { id, body, markup_language }), obj), {});
 
 					for (let i = 0; i < results.length; i++) {
 						const row = results[i];
@@ -231,11 +240,14 @@ class Dialog extends React.PureComponent {
 
 							if (i < limit) { // Display note fragments of search keyword matches
 								const indices = [];
-								const body = notesById[row.id];
+								const note = notesById[row.id];
+								const body = this.markupToHtml().stripMarkup(note.markup_language, note.body, { collapseWhiteSpaces: true });
 
 								// Iterate over all matches in the body for each search keyword
-								for (const { valueRegex } of searchKeywords) {
-									for (const match of body.matchAll(new RegExp(valueRegex, 'ig'))) {
+								for (let { valueRegex } of searchKeywords) {
+									valueRegex = removeDiacritics(valueRegex);
+
+									for (const match of removeDiacritics(body).matchAll(new RegExp(valueRegex, 'ig'))) {
 										// Populate 'indices' with [begin index, end index] of each note fragment
 										// Begins at the regex matching index, ends at the next whitespace after seeking 15 characters to the right
 										indices.push([match.index, nextWhitespaceIndex(body, match.index + match[0].length + 15)]);
@@ -249,7 +261,8 @@ class Dialog extends React.PureComponent {
 								const mergedIndices = mergeOverlappingIntervals(indices, 3);
 								fragments = mergedIndices.map(f => body.slice(f[0], f[1])).join(' ... ');
 								// Add trailing ellipsis if the final fragment doesn't end where the note is ending
-								if (mergedIndices[mergedIndices.length - 1][1] !== body.length) fragments += ' ...';
+								if (mergedIndices.length && mergedIndices[mergedIndices.length - 1][1] !== body.length) fragments += ' ...';
+
 							}
 
 							results[i] = Object.assign({}, row, { path, fragments });
@@ -257,22 +270,21 @@ class Dialog extends React.PureComponent {
 							results[i] = Object.assign({}, row, { path: path, fragments: '' });
 						}
 					}
+
+					if (!this.props.showCompletedTodos) {
+						results = results.filter((row) => !row.is_todo || !row.todo_completed);
+					}
 				}
 			}
 
-			let selectedItemId = null;
-			const itemIndex = this.selectedItemIndex(results, this.state.selectedItemId);
-			if (itemIndex > 0) {
-				selectedItemId = this.state.selectedItemId;
-			} else if (results.length > 0) {
-				selectedItemId = results[0].id;
-			}
+			// make list scroll to top in every search
+			this.itemListRef.current.makeItemIndexVisible(0);
 
 			this.setState({
 				listType: listType,
 				results: results,
 				keywords: this.keywords(searchQuery),
-				selectedItemId: selectedItemId,
+				selectedItemId: results.length === 0 ? null : results[0].id,
 				resultsInBody: resultsInBody,
 			});
 		}
@@ -302,8 +314,9 @@ class Dialog extends React.PureComponent {
 				type: 'FOLDER_AND_NOTE_SELECT',
 				folderId: item.parent_id,
 				noteId: item.id,
-				historyAction: 'goto',
 			});
+
+			CommandService.instance().scheduleExecute('focusElement', { target: 'noteBody' });
 		} else if (this.state.listType === BaseModel.TYPE_TAG) {
 			this.props.dispatch({
 				type: 'TAG_SELECT',
@@ -313,7 +326,6 @@ class Dialog extends React.PureComponent {
 			this.props.dispatch({
 				type: 'FOLDER_SELECT',
 				id: item.id,
-				historyAction: 'goto',
 			});
 		}
 	}
@@ -334,13 +346,13 @@ class Dialog extends React.PureComponent {
 		const rowStyle = item.id === this.state.selectedItemId ? style.rowSelected : style.row;
 		const titleHtml = item.fragments
 			? `<span style="font-weight: bold; color: ${theme.colorBright};">${item.title}</span>`
-			: surroundKeywords(this.state.keywords, item.title, `<span style="font-weight: bold; color: ${theme.colorBright};">`, '</span>');
+			: surroundKeywords(this.state.keywords, item.title, `<span style="font-weight: bold; color: ${theme.colorBright};">`, '</span>', { escapeHtml: true });
 
-		const fragmentsHtml = !item.fragments ? null : surroundKeywords(this.state.keywords, item.fragments, `<span style="font-weight: bold; color: ${theme.colorBright};">`, '</span>');
+		const fragmentsHtml = !item.fragments ? null : surroundKeywords(this.state.keywords, item.fragments, `<span style="font-weight: bold; color: ${theme.colorBright};">`, '</span>', { escapeHtml: true });
 
 		const folderIcon = <i style={{ fontSize: theme.fontSize, marginRight: 2 }} className="fa fa-book" />;
 		const pathComp = !item.path ? null : <div style={style.rowPath}>{folderIcon} {item.path}</div>;
-		const fragmentComp = !fragmentsHtml ? null : <div style={style.rowFragments} dangerouslySetInnerHTML={{ __html: fragmentsHtml }}></div>;
+		const fragmentComp = !fragmentsHtml ? null : <div style={style.rowFragments} dangerouslySetInnerHTML={{ __html: (fragmentsHtml) }}></div>;
 
 		return (
 			<div key={item.id} style={rowStyle} onClick={this.listItem_onClick} data-id={item.id} data-parent-id={item.parent_id}>
@@ -442,6 +454,7 @@ const mapStateToProps = (state) => {
 	return {
 		folders: state.folders,
 		theme: state.settings.theme,
+		showCompletedTodos: state.settings.showCompletedTodos,
 	};
 };
 
@@ -455,7 +468,7 @@ GotoAnything.manifest = {
 			name: 'main',
 			parent: 'tools',
 			label: _('Goto Anything...'),
-			accelerator: 'CommandOrControl+G',
+			accelerator: () => KeymapService.instance().getAccelerator('gotoAnything'),
 			screens: ['Main'],
 		},
 	],

@@ -5,6 +5,7 @@ const Tag = require('lib/models/Tag.js');
 const BaseModel = require('lib/BaseModel.js');
 const Note = require('lib/models/Note.js');
 const Resource = require('lib/models/Resource.js');
+const Setting = require('lib/models/Setting.js');
 const { reducer, defaultState } = require('lib/reducer.js');
 const { splitCommandString } = require('lib/string-utils.js');
 const { reg } = require('lib/registry.js');
@@ -32,6 +33,8 @@ const FolderListWidget = require('./gui/FolderListWidget.js');
 const NoteListWidget = require('./gui/NoteListWidget.js');
 const StatusBarWidget = require('./gui/StatusBarWidget.js');
 const ConsoleWidget = require('./gui/ConsoleWidget.js');
+const LinkSelector = require('./LinkSelector.js').default;
+
 
 class AppGui {
 	constructor(app, store, keymap) {
@@ -72,6 +75,8 @@ class AppGui {
 
 			this.currentShortcutKeys_ = [];
 			this.lastShortcutKeyTime_ = 0;
+
+			this.linkSelector_ = new LinkSelector();
 
 			// Recurrent sync is setup only when the GUI is started. In
 			// a regular command it's not necessary since the process
@@ -243,9 +248,9 @@ class AppGui {
 
 		const hLayout = new HLayoutWidget();
 		hLayout.name = 'hLayout';
-		hLayout.addChild(folderList, { type: 'stretch', factor: 1 });
-		hLayout.addChild(noteList, { type: 'stretch', factor: 1 });
-		hLayout.addChild(noteLayout, { type: 'stretch', factor: 2 });
+		hLayout.addChild(folderList, { type: 'stretch', factor: Setting.value('layout.folderList.factor') });
+		hLayout.addChild(noteList, { type: 'stretch', factor: Setting.value('layout.noteList.factor') });
+		hLayout.addChild(noteLayout, { type: 'stretch', factor: Setting.value('layout.note.factor') });
 
 		const vLayout = new VLayoutWidget();
 		vLayout.name = 'vLayout';
@@ -453,6 +458,30 @@ class AppGui {
 				await this.processPromptCommand('rmnote $n');
 			} else {
 				this.stdout(_('Please select the note or notebook to be deleted first.'));
+			}
+		} else if (cmd === 'next_link' || cmd === 'previous_link') {
+			const noteText = this.widget('noteText');
+
+			noteText.render();
+
+			if (cmd === 'next_link') this.linkSelector_.changeLink(noteText, 1);
+			else this.linkSelector_.changeLink(noteText, -1);
+
+			this.linkSelector_.scrollWidget(noteText);
+
+			const cursorOffsetX = this.widget('mainWindow').width - noteText.innerWidth - 8;
+			const cursorOffsetY = 1 - noteText.scrollTop_;
+
+			if (this.linkSelector_.link) {
+				this.term_.moveTo(
+					this.linkSelector_.noteX + cursorOffsetX,
+					this.linkSelector_.noteY + cursorOffsetY
+				);
+				setTimeout(() => this.term_.term().inverse(this.linkSelector_.link), 50);
+			}
+		} else if (cmd === 'open_link') {
+			if (this.widget('noteText').hasFocus) {
+				this.linkSelector_.openLink(this.widget('noteText'));
 			}
 		} else if (cmd === 'toggle_console') {
 			if (!this.consoleIsShown()) {
